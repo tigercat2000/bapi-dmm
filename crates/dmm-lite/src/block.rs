@@ -30,7 +30,7 @@ pub fn parse_map_lines<'s>(i: &mut &'s str) -> PResult<Vec<&'s str>> {
     .parse_next(i)
 }
 
-type Block<'s> = ((usize, usize, usize), Vec<&'s str>);
+pub type Block<'s> = ((usize, usize, usize), Vec<&'s str>);
 pub fn parse_block<'s>(i: &mut &'s str) -> PResult<Block<'s>> {
     separated_pair(
         parse_coords,
@@ -55,14 +55,14 @@ pub fn get_block_locations(i: &str) -> Vec<usize> {
     results
 }
 
-pub fn multithreaded_parse_map_locations(i: &str) -> Vec<Block> {
+pub fn multithreaded_parse_map_locations(i: &str) -> PResult<Vec<Block>> {
     let locations = get_block_locations(i);
 
     locations
         .par_iter()
-        .filter_map(|loc| {
+        .map(|loc| {
             let mut substring = &i[*loc..];
-            parse_block(&mut substring).ok()
+            parse_block(&mut substring)
         })
         .collect()
 }

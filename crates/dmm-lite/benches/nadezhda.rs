@@ -1,6 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use dmm_lite::{
-    block::multithreaded_parse_map_locations, prefabs::multithreaded_parse_map_prefabs,
+    block::multithreaded_parse_map_locations, parse_map_multithreaded,
+    prefabs::multithreaded_parse_map_prefabs,
 };
 
 fn criterion_benchmark(c: &mut Criterion) {
@@ -22,6 +23,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     });
     group.bench_function("tgm blocks", |b| {
         b.iter_with_large_drop(|| multithreaded_parse_map_locations(nadezhda_tgm.as_str()))
+    });
+    group.bench_function("dmm full", |b| {
+        b.iter_with_large_drop(|| parse_map_multithreaded(nadezhda_dmm.as_str()))
+    });
+    group.bench_function("tgm full", |b| {
+        b.iter_with_large_drop(|| parse_map_multithreaded(nadezhda_tgm.as_str()))
     });
 }
 

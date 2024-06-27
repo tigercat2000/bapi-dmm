@@ -83,7 +83,7 @@ pub fn parse_prefab<'s>(i: &mut &'s str) -> PResult<(&'s str, Option<&'s str>)> 
     .parse_next(i)
 }
 
-type PrefabLine<'s> = (&'s str, Vec<(&'s str, Option<&'s str>)>);
+pub type PrefabLine<'s> = (&'s str, Vec<(&'s str, Option<&'s str>)>);
 
 pub fn parse_prefab_line<'s>(i: &mut &'s str) -> PResult<PrefabLine<'s>> {
     terminated(
@@ -115,14 +115,15 @@ pub fn get_prefab_locations(i: &str) -> Vec<usize> {
     results
 }
 
-pub fn multithreaded_parse_map_prefabs(i: &str) -> HashMap<&str, Vec<(&str, Option<&str>)>> {
+pub type Prefabs<'s> = HashMap<&'s str, Vec<(&'s str, Option<&'s str>)>>;
+pub fn multithreaded_parse_map_prefabs(i: &str) -> PResult<Prefabs> {
     let locations = get_prefab_locations(i);
 
     locations
         .par_iter()
-        .filter_map(|loc| {
+        .map(|loc| {
             let mut substring = &i[*loc..];
-            parse_prefab_line(&mut substring).ok()
+            parse_prefab_line(&mut substring)
         })
         .collect()
 }

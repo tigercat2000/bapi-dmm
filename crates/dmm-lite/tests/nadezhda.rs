@@ -1,5 +1,6 @@
 use dmm_lite::{
     block::{get_block_locations, parse_block},
+    parse_map_multithreaded,
     prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line},
 };
 use winnow::Parser as _;
@@ -163,4 +164,18 @@ fn full_block_parse() {
             Err(e) => panic!("Test Failed at {parse:#?}: {:#?}", e),
         }
     }
+}
+
+#[test]
+fn full_parse() {
+    let map = std::fs::read_to_string("./tests/maps/nadezhda.dmm").unwrap();
+    let map_tgm = std::fs::read_to_string("./tests/maps/nadezhda-tgm.dmm").unwrap();
+
+    let (prefabs, blocks) = parse_map_multithreaded(&map).unwrap();
+    assert_eq!(prefabs.len(), 14980);
+    assert_eq!(blocks.len(), 3);
+
+    let (tgm_prefabs, tgm_blocks) = parse_map_multithreaded(&map_tgm).unwrap();
+    assert_eq!(tgm_prefabs.len(), 14980);
+    assert_eq!(tgm_blocks.len(), 200 * 3);
 }
