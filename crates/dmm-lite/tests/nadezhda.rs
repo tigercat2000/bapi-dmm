@@ -1,4 +1,7 @@
-use dmm_lite::prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line};
+use dmm_lite::{
+    block::{get_block_locations, parse_block},
+    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line},
+};
 use winnow::Parser as _;
 
 #[test]
@@ -115,5 +118,49 @@ fn full_prefab_parse() {
     for loc in nadezhda_tgm_locations {
         let mut parse = &nadezhda_tgm[loc..];
         assert!(parse_prefab_line.parse_next(&mut parse).is_ok())
+    }
+}
+
+#[test]
+fn test_block_detection() {
+    let nadezhda = std::fs::read_to_string("./tests/maps/nadezhda.dmm").unwrap();
+    let nadezhda_tgm = std::fs::read_to_string("./tests/maps/nadezhda-tgm.dmm").unwrap();
+    // tgm files sometimes have a header
+    // //MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+    let nadezhda_tgm: String = nadezhda_tgm
+        .lines()
+        .map(|l| format!("{}\n", l))
+        .skip(1)
+        .collect();
+
+    let nadezhda_location_count = get_block_locations(&nadezhda).len();
+    assert_eq!(nadezhda_location_count, 3);
+    let nadezhda_tgm_location_count = get_block_locations(&nadezhda_tgm).len();
+    assert_eq!(nadezhda_tgm_location_count, 200 * 3);
+}
+
+#[test]
+fn full_block_parse() {
+    let nadezhda = std::fs::read_to_string("./tests/maps/nadezhda.dmm").unwrap();
+    let nadezhda_tgm = std::fs::read_to_string("./tests/maps/nadezhda-tgm.dmm").unwrap();
+
+    let nadezhda_locations = get_block_locations(&nadezhda);
+    for loc in nadezhda_locations {
+        let mut parse = &nadezhda[loc..];
+        let value = parse_block.parse_next(&mut parse);
+        match value {
+            Ok(_) => {}
+            Err(e) => panic!("Test Failed at {parse:#?}: {:#?}", e),
+        }
+    }
+
+    let nadezhda_tgm_locations = get_block_locations(&nadezhda_tgm);
+    for loc in nadezhda_tgm_locations {
+        let mut parse = &nadezhda_tgm[loc..];
+        let value = parse_block.parse_next(&mut parse);
+        match value {
+            Ok(_) => {}
+            Err(e) => panic!("Test Failed at {parse:#?}: {:#?}", e),
+        }
     }
 }

@@ -1,4 +1,7 @@
-use dmm_lite::prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line};
+use dmm_lite::{
+    block::{get_block_locations, parse_block},
+    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line},
+};
 use winnow::Parser as _;
 
 #[test]
@@ -117,5 +120,49 @@ fn full_prefab_parse() {
     for loc in metastation_tgm_locations {
         let mut parse = &metastation_tgm[loc..];
         assert!(parse_prefab_line.parse_next(&mut parse).is_ok())
+    }
+}
+
+#[test]
+fn test_block_detection() {
+    let metastation = std::fs::read_to_string("./tests/maps/MetaStation.dmm").unwrap();
+    let metastation_tgm = std::fs::read_to_string("./tests/maps/MetaStation-tgm.dmm").unwrap();
+    // tgm files sometimes have a header
+    // //MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+    let metastation_tgm: String = metastation_tgm
+        .lines()
+        .map(|l| format!("{}\n", l))
+        .skip(1)
+        .collect();
+
+    let metastation_location_count = get_block_locations(&metastation).len();
+    assert_eq!(metastation_location_count, 1);
+    let metastation_tgm_location_count = get_block_locations(&metastation_tgm).len();
+    assert_eq!(metastation_tgm_location_count, 255);
+}
+
+#[test]
+fn full_block_parse() {
+    let metastation = std::fs::read_to_string("./tests/maps/MetaStation.dmm").unwrap();
+    let metastation_tgm = std::fs::read_to_string("./tests/maps/MetaStation-tgm.dmm").unwrap();
+
+    let metastation_locations = get_block_locations(&metastation);
+    for loc in metastation_locations {
+        let mut parse = &metastation[loc..];
+        let value = parse_block.parse_next(&mut parse);
+        match value {
+            Ok(_) => {}
+            Err(e) => panic!("Test Failed at {parse:#?}: {:#?}", e),
+        }
+    }
+
+    let metastation_tgm_locations = get_block_locations(&metastation_tgm);
+    for loc in metastation_tgm_locations {
+        let mut parse = &metastation_tgm[loc..];
+        let value = parse_block.parse_next(&mut parse);
+        match value {
+            Ok(_) => {}
+            Err(e) => panic!("Test Failed at {parse:#?}: {:#?}", e),
+        }
     }
 }

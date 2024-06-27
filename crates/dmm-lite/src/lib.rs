@@ -1,2 +1,2 @@
-pub mod coords;
+pub mod block;
 pub mod prefabs;

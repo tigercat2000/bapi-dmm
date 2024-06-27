@@ -100,7 +100,7 @@ pub fn parse_prefab_line<'s>(i: &mut &'s str) -> PResult<PrefabLine<'s>> {
     .parse_next(i)
 }
 
-/// Used for multithreading: Uses a fast regex to get the location of every prefab key
+/// Used for multithreading: Uses a fast regex to get the starting location of every prefab key
 pub fn get_prefab_locations(i: &str) -> Vec<usize> {
     let re = Regex::new(r#""([a-zA-Z]+)" = \("#).unwrap();
 
