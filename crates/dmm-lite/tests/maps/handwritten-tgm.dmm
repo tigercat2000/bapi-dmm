@@ -1,0 +1,22 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"aaa" = (
+/turf/space{
+	name = "meow"
+	},
+/area/space)
+"aab" = (
+/turf/simulated/floor,
+/area/space)
+"aac" = (
+/turf/simulated/floor/tile,
+/area/space)
+
+(1,1,1) = {"
+aaa
+"}
+(2,1,1) = {"
+aab
+"}
+(3,1,1) = {"
+aac
+"}

@@ -1,0 +1,7 @@
+"aaa" = (/turf/space{name = "meow"},/area/space)
+"aab" = (/turf/simulated/floor,/area/space)
+"aac" = (/turf/simulated/floor/tile,/area/space)
+
+(1,1,1) = {"aaaaabaac
+aaaaabaac
+aaaaabaac"}
