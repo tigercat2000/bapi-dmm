@@ -1,4 +1,4 @@
-use dmm_lite::{detect_tgm, get_prefab_locations, parse_prefab_line};
+use dmm_lite::prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line};
 use winnow::Parser as _;
 
 #[test]

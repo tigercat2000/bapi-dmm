@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use dmm_lite::multithreaded_parse_map_prefabs;
+use dmm_lite::prefabs::multithreaded_parse_map_prefabs;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let meta_dmm = std::fs::read_to_string("./tests/maps/nadezhda.dmm")
