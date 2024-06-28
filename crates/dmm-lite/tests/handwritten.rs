@@ -164,11 +164,13 @@ fn full_parse() {
     let meow = std::fs::read_to_string("./tests/maps/handwritten.dmm").unwrap();
     let meow_tgm = std::fs::read_to_string("./tests/maps/handwritten-tgm.dmm").unwrap();
 
-    let (prefabs, blocks) = parse_map_multithreaded(&meow).unwrap();
+    let (meta, (prefabs, blocks)) = parse_map_multithreaded(&meow).unwrap();
+    assert!(!meta.is_tgm);
     assert_eq!(prefabs.len(), 3);
     assert_eq!(blocks.len(), 1);
 
-    let (tgm_prefabs, tgm_blocks) = parse_map_multithreaded(&meow_tgm).unwrap();
+    let (meta, (tgm_prefabs, tgm_blocks)) = parse_map_multithreaded(&meow_tgm).unwrap();
+    assert!(meta.is_tgm);
     assert_eq!(tgm_prefabs.len(), 3);
     assert_eq!(tgm_blocks.len(), 3);
 }

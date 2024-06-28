@@ -1,10 +1,14 @@
-use winnow::{combinator::opt, PResult, Parser};
+use winnow::{combinator::opt, stream::Stream, PResult, Parser};
 
 pub mod block;
 pub mod prefabs;
 
-pub type MapData<'s> = PResult<(prefabs::Prefabs<'s>, Vec<block::Block<'s>>)>;
-pub fn parse_map_multithreaded(i: &str) -> MapData {
+pub struct MapInfo {
+    pub is_tgm: bool,
+}
+
+pub type MapData<'s> = (prefabs::Prefabs<'s>, Vec<block::Block<'s>>);
+pub fn parse_map_multithreaded(i: &str) -> PResult<(MapInfo, MapData)> {
     let mut i = i;
     // just merk the dmm2tgm header
     let _ = opt(
@@ -12,8 +16,12 @@ pub fn parse_map_multithreaded(i: &str) -> MapData {
     )
     .parse_next(&mut i)?;
 
-    Ok((
-        prefabs::multithreaded_parse_map_prefabs(i)?,
-        block::multithreaded_parse_map_locations(i)?,
-    ))
+    let checkpoint = i.checkpoint();
+    let is_tgm = prefabs::detect_tgm(&mut i);
+    i.reset(&checkpoint);
+
+    let prefab_map = prefabs::multithreaded_parse_map_prefabs(i)?;
+    let block_list = block::multithreaded_parse_map_locations(i)?;
+
+    Ok((MapInfo { is_tgm }, (prefab_map, block_list)))
 }

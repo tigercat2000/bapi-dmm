@@ -173,11 +173,13 @@ fn full_parse() {
     let map = std::fs::read_to_string("./tests/maps/MetaStation.dmm").unwrap();
     let map_tgm = std::fs::read_to_string("./tests/maps/MetaStation-tgm.dmm").unwrap();
 
-    let (prefabs, blocks) = parse_map_multithreaded(&map).unwrap();
+    let (meta, (prefabs, blocks)) = parse_map_multithreaded(&map).unwrap();
+    assert!(!meta.is_tgm);
     assert_eq!(prefabs.len(), 8564);
     assert_eq!(blocks.len(), 1);
 
-    let (tgm_prefabs, tgm_blocks) = parse_map_multithreaded(&map_tgm).unwrap();
+    let (meta, (tgm_prefabs, tgm_blocks)) = parse_map_multithreaded(&map_tgm).unwrap();
+    assert!(meta.is_tgm);
     assert_eq!(tgm_prefabs.len(), 8564);
     assert_eq!(tgm_blocks.len(), 255);
 }
