@@ -1,7 +1,7 @@
 use dmm_lite::{
     block::{get_block_locations, parse_block},
     parse_map_multithreaded,
-    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line},
+    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, parse_var_list},
 };
 use winnow::Parser as _;
 
@@ -114,13 +114,27 @@ fn full_prefab_parse() {
     let metastation_locations = get_prefab_locations(&metastation);
     for loc in metastation_locations {
         let mut parse = &metastation[loc..];
-        assert!(parse_prefab_line.parse_next(&mut parse).is_ok())
+        let (_key, val) = parse_prefab_line
+            .parse_next(&mut parse)
+            .expect("Prefab didn't parse correctly");
+        for (_path, maybe_prefab) in val {
+            if let Some(mut prefab) = maybe_prefab {
+                assert!(parse_var_list.parse_next(&mut prefab).is_ok())
+            }
+        }
     }
 
     let metastation_tgm_locations = get_prefab_locations(&metastation_tgm);
     for loc in metastation_tgm_locations {
         let mut parse = &metastation_tgm[loc..];
-        assert!(parse_prefab_line.parse_next(&mut parse).is_ok())
+        let (_key, val) = parse_prefab_line
+            .parse_next(&mut parse)
+            .expect("Prefab didn't parse correctly");
+        for (_path, maybe_prefab) in val {
+            if let Some(mut prefab) = maybe_prefab {
+                assert!(parse_var_list.parse_next(&mut prefab).is_ok())
+            }
+        }
     }
 }
 
