@@ -68,9 +68,10 @@ pub fn parse_prefab_data<'s>(i: &mut &'s str) -> PResult<&'s str> {
     }
 }
 
-pub fn parse_prefab<'s>(i: &mut &'s str) -> PResult<(&'s str, Option<&'s str>)> {
+type Prefab<'s> = (&'s str, Option<Vec<(&'s str, Literal<'s>)>>);
+pub fn parse_prefab<'s>(i: &mut &'s str) -> PResult<Prefab<'s>> {
     alt((
-        (parse_path, parse_prefab_data)
+        (parse_path, parse_var_list)
             .context(StrContext::Label("prefab with data"))
             .map(|(a, b)| (a, Some(b))),
         parse_path
@@ -80,8 +81,7 @@ pub fn parse_prefab<'s>(i: &mut &'s str) -> PResult<(&'s str, Option<&'s str>)> 
     .parse_next(i)
 }
 
-pub type PrefabLine<'s> = (&'s str, Vec<(&'s str, Option<&'s str>)>);
-
+pub type PrefabLine<'s> = (&'s str, Vec<Prefab<'s>>);
 pub fn parse_prefab_line<'s>(i: &mut &'s str) -> PResult<PrefabLine<'s>> {
     terminated(
         separated_pair(
@@ -112,7 +112,7 @@ pub fn get_prefab_locations(i: &str) -> Vec<usize> {
     results
 }
 
-pub type Prefabs<'s> = HashMap<&'s str, Vec<(&'s str, Option<&'s str>)>>;
+pub type Prefabs<'s> = HashMap<&'s str, Vec<(&'s str, Option<Vec<(&'s str, Literal<'s>)>>)>>;
 pub fn multithreaded_parse_map_prefabs(i: &str) -> PResult<Prefabs> {
     let locations = get_prefab_locations(i);
 
@@ -173,8 +173,11 @@ pub fn separate_var_list<'s>(i: &mut &'s str) -> PResult<Vec<&'s str>> {
                     // If we have something left in our buffer, we add it
                     if count > 0 {
                         i.reset(&checkpoint);
+                        let key_and_val = take(count).parse_next(i)?.trim();
                         // Eat all the whitespace
-                        vars.push(take(count).parse_next(i)?.trim());
+                        vars.push(key_and_val);
+                        // Eat the }
+                        let _ = '}'.parse_next(i)?;
                     }
                     return Ok(vars);
                 } else {
@@ -396,11 +399,17 @@ mod tests {
         );
         assert_eq!(
             parse_prefab.parse_next(&mut prefab_with_vars),
-            Ok(("/turf/open/space/basic", Some(r#"{name = "meow"}"#)))
+            Ok((
+                "/turf/open/space/basic",
+                Some(vec![("name", Literal::String("meow"))])
+            ))
         );
         assert_eq!(
             parse_prefab.parse_next(&mut attack_prefab),
-            Ok(("/turf/open/space/basic", Some(r#"{name = "meo\"w}"}"#)))
+            Ok((
+                "/turf/open/space/basic",
+                Some(vec![("name", Literal::String(r#"meo\"w}"#))])
+            ))
         );
     }
 
@@ -423,7 +432,10 @@ mod tests {
                 "aar",
                 vec![
                     ("/mob/living/basic/bot/cleanbot/autopatrol", None),
-                    ("/obj/structure/disposalpipe/segment", Some("{dir = 4}")),
+                    (
+                        "/obj/structure/disposalpipe/segment",
+                        Some(vec![("dir", Literal::Number(4.))])
+                    ),
                     ("/obj/effect/turf_decal/tile/neutral", None),
                     ("/turf/open/floor/iron", None),
                     ("/area/station/hallway/primary/central", None)

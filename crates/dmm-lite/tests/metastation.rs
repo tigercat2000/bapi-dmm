@@ -1,7 +1,7 @@
 use dmm_lite::{
     block::{get_block_locations, parse_block},
     parse_map_multithreaded,
-    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, parse_var_list},
+    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, Literal},
 };
 use winnow::Parser as _;
 
@@ -74,7 +74,10 @@ fn test_prefab_line() {
                     None
                 ),
                 ("/obj/structure/disposalpipe/segment", None),
-                ("/obj/effect/turf_decal/tile/neutral", Some("{dir = 4}")),
+                (
+                    "/obj/effect/turf_decal/tile/neutral",
+                    Some(vec![("dir", Literal::Number(4.))])
+                ),
                 ("/turf/open/floor/iron", None),
                 ("/area/station/hallway/primary/port", None)
             ]
@@ -97,7 +100,7 @@ fn test_prefab_line() {
                 ("/obj/structure/disposalpipe/segment", None),
                 (
                     "/obj/effect/turf_decal/tile/neutral",
-                    Some("{\n\tdir = 4\n\t}")
+                    Some(vec![("dir", Literal::Number(4.))])
                 ),
                 ("/turf/open/floor/iron", None),
                 ("/area/station/hallway/primary/port", None)
@@ -114,27 +117,17 @@ fn full_prefab_parse() {
     let metastation_locations = get_prefab_locations(&metastation);
     for loc in metastation_locations {
         let mut parse = &metastation[loc..];
-        let (_key, val) = parse_prefab_line
+        parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");
-        for (_path, maybe_prefab) in val {
-            if let Some(mut prefab) = maybe_prefab {
-                assert!(parse_var_list.parse_next(&mut prefab).is_ok())
-            }
-        }
     }
 
     let metastation_tgm_locations = get_prefab_locations(&metastation_tgm);
     for loc in metastation_tgm_locations {
         let mut parse = &metastation_tgm[loc..];
-        let (_key, val) = parse_prefab_line
+        parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");
-        for (_path, maybe_prefab) in val {
-            if let Some(mut prefab) = maybe_prefab {
-                assert!(parse_var_list.parse_next(&mut prefab).is_ok())
-            }
-        }
     }
 }
 

@@ -1,7 +1,7 @@
 use dmm_lite::{
     block::{get_block_locations, parse_block},
     parse_map_multithreaded,
-    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, parse_var_list},
+    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, Literal},
 };
 use winnow::Parser;
 
@@ -57,7 +57,7 @@ fn test_prefab_line() {
         Ok((
             "aaa",
             vec![
-                ("/turf/space", Some(r#"{name = "meow"}"#)),
+                ("/turf/space", Some(vec![("name", Literal::String("meow"))])),
                 ("/area/space", None)
             ]
         ))
@@ -67,7 +67,7 @@ fn test_prefab_line() {
         Ok((
             "aaa",
             vec![
-                ("/turf/space", Some("{\n\tname = \"meow\"\n\t}")),
+                ("/turf/space", Some(vec![("name", Literal::String("meow"))])),
                 ("/area/space", None)
             ]
         ))
@@ -82,27 +82,17 @@ fn full_prefab_parse() {
     let meow_locations = get_prefab_locations(&meow);
     for loc in meow_locations {
         let mut parse = &meow[loc..];
-        let (_key, val) = parse_prefab_line
+        parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");
-        for (_path, maybe_prefab) in val {
-            if let Some(mut prefab) = maybe_prefab {
-                assert!(parse_var_list.parse_next(&mut prefab).is_ok())
-            }
-        }
     }
 
     let meow_tgm_locations = get_prefab_locations(&meow_tgm);
     for loc in meow_tgm_locations {
         let mut parse = &meow_tgm[loc..];
-        let (_key, val) = parse_prefab_line
+        parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");
-        for (_path, maybe_prefab) in val {
-            if let Some(mut prefab) = maybe_prefab {
-                assert!(parse_var_list.parse_next(&mut prefab).is_ok())
-            }
-        }
     }
 }
 

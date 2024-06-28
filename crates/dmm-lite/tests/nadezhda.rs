@@ -1,7 +1,7 @@
 use dmm_lite::{
     block::{get_block_locations, parse_block},
     parse_map_multithreaded,
-    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, parse_var_list},
+    prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, Literal},
 };
 use winnow::Parser as _;
 
@@ -68,9 +68,25 @@ fn test_prefab_line() {
             vec![
                 (
                     "/obj/machinery/embedded_controller/radio/airlock/airlock_controller",
-                    Some(
-                        "{pixel_y = 24; frequency = 1380; id_tag = \"vasiliy_dokuchaev_shuttle1\"; tag_exterior_door = \"research_shuttle_outer_back\"; tag_interior_door = \"research_shuttle_inner_back\"; req_access = list(13); tag_airpump = \"research_shuttle_pump_back\"; tag_chamber_sensor = \"research_shuttle_sensor_back\"}"
-                    )
+                    Some(vec![
+                        ("pixel_y", Literal::Number(24.)),
+                        ("frequency", Literal::Number(1380.)),
+                        ("id_tag", Literal::String("vasiliy_dokuchaev_shuttle1")),
+                        (
+                            "tag_exterior_door",
+                            Literal::String("research_shuttle_outer_back")
+                        ),
+                        (
+                            "tag_interior_door",
+                            Literal::String("research_shuttle_inner_back")
+                        ),
+                        ("req_access", Literal::List(vec![Literal::Number(13.)])),
+                        ("tag_airpump", Literal::String("research_shuttle_pump_back")),
+                        (
+                            "tag_chamber_sensor",
+                            Literal::String("research_shuttle_sensor_back")
+                        ),
+                    ])
                 ),
                 ("/turf/simulated/floor/reinforced", None),
                 ("/area/shuttle/vasiliy_shuttle_area", None)
@@ -84,18 +100,25 @@ fn test_prefab_line() {
             vec![
                 (
                     "/obj/machinery/embedded_controller/radio/airlock/airlock_controller",
-                    Some(
-                        r#"{
-	pixel_y = 24;
-	frequency = 1380;
-	id_tag = "vasiliy_dokuchaev_shuttle1";
-	tag_exterior_door = "research_shuttle_outer_back";
-	tag_interior_door = "research_shuttle_inner_back";
-	req_access = list(13);
-	tag_airpump = "research_shuttle_pump_back";
-	tag_chamber_sensor = "research_shuttle_sensor_back"
-	}"#
-                    )
+                    Some(vec![
+                        ("pixel_y", Literal::Number(24.)),
+                        ("frequency", Literal::Number(1380.)),
+                        ("id_tag", Literal::String("vasiliy_dokuchaev_shuttle1")),
+                        (
+                            "tag_exterior_door",
+                            Literal::String("research_shuttle_outer_back")
+                        ),
+                        (
+                            "tag_interior_door",
+                            Literal::String("research_shuttle_inner_back")
+                        ),
+                        ("req_access", Literal::List(vec![Literal::Number(13.)])),
+                        ("tag_airpump", Literal::String("research_shuttle_pump_back")),
+                        (
+                            "tag_chamber_sensor",
+                            Literal::String("research_shuttle_sensor_back")
+                        ),
+                    ])
                 ),
                 ("/turf/simulated/floor/reinforced", None),
                 ("/area/shuttle/vasiliy_shuttle_area", None)
@@ -112,27 +135,17 @@ fn full_prefab_parse() {
     let nadezhda_locations = get_prefab_locations(&nadezhda);
     for loc in nadezhda_locations {
         let mut parse = &nadezhda[loc..];
-        let (_key, val) = parse_prefab_line
+        parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");
-        for (_path, maybe_prefab) in val {
-            if let Some(mut prefab) = maybe_prefab {
-                assert!(parse_var_list.parse_next(&mut prefab).is_ok())
-            }
-        }
     }
 
     let nadezhda_tgm_locations = get_prefab_locations(&nadezhda_tgm);
     for loc in nadezhda_tgm_locations {
         let mut parse = &nadezhda_tgm[loc..];
-        let (_key, val) = parse_prefab_line
+        parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");
-        for (_path, maybe_prefab) in val {
-            if let Some(mut prefab) = maybe_prefab {
-                assert!(parse_var_list.parse_next(&mut prefab).is_ok())
-            }
-        }
     }
 }
 
