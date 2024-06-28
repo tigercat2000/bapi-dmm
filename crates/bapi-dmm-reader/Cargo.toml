@@ -1,0 +1,19 @@
+[package]
+name = "bapi-dmm-reader"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+byondapi = "0.4.8"
+eyre = "0.6.12"
+dmm-lite = { path = "../dmm-lite" }
+lazy_static = "1.5.0"
+memmap2 = "0.9.4"
+ouroboros = "0.18.4"
+
+[dev-dependencies]
+tempfile = "3.10.1"
+cargo_metadata = "0.18.1"

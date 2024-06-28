@@ -1,0 +1,40 @@
+#include "test_map.dmm"
+#include "bapi_dmm_reader.dm"
+#define DEBUG
+
+/turf/turf_type_a
+	color = "#FF0000"
+/turf/turf_type_b
+	color = "#00FF00"
+
+/world/New()
+	world.log = file("dd_log.txt")
+
+	for(var/func in typesof(/test/proc))
+		world.log << "[func] [copytext("------------------------------------------------------------------------", length("[func]"))]"
+		call(new /test, func)()
+
+	del(src)
+
+/test/proc/test_byondapi_connection()
+	var/ret = _bapidmm_test_connection()
+	if (ret != 10)
+		throw EXCEPTION("Connection bad")
+
+/test/proc/test_dmm_parsing()
+	var/datum/bapi_parsed_map/B = _bapidmm_parse_map_blocking("test_map.dmm")
+	ASSERT(B._internal_index != -1)
+	ASSERT(B.map_format == MAP_DMM)
+	ASSERT(B.key_len == 1)
+	ASSERT(B.line_len == 10)
+	if(B.bounds ~! list(1, 1, 1, 10, 10, 1))
+		CRASH("Expected bounds to be list(1, 1, 1, 10, 10, 1), but found [json_encode(B.bounds)]")
+
+/test/proc/test_tgm_parsing()
+	var/datum/bapi_parsed_map/B = _bapidmm_parse_map_blocking("test_map_tgm.dmm")
+	ASSERT(B._internal_index != -1)
+	ASSERT(B.map_format == MAP_TGM)
+	ASSERT(B.key_len == 1)
+	ASSERT(B.line_len == 1)
+	if(B.bounds ~! list(1, 1, 1, 10, 10, 1))
+		CRASH("Expected bounds to be list(1, 1, 1, 10, 10, 1), but found [json_encode(B.bounds)]")
