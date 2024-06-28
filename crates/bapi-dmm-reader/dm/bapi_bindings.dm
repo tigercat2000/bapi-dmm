@@ -14,8 +14,8 @@
 /proc/_bapidmm_clear_map_data()
 	return call_ext(BAPI_DMM_READER, "byond:_bapidmm_clear_map_data_ffi")()
 
-/proc/_bapidmm_parse_map_blocking(dmm_file)
-	return call_ext(BAPI_DMM_READER, "byond:_bapidmm_parse_map_blocking_ffi")(dmm_file)
+/proc/_bapidmm_parse_map_blocking(dmm_file, map_datum)
+	return call_ext(BAPI_DMM_READER, "byond:_bapidmm_parse_map_blocking_ffi")(dmm_file, map_datum)
 
 /proc/_bapidmm_test_connection()
 	return call_ext(BAPI_DMM_READER, "byond:_bapidmm_test_connection_ffi")()

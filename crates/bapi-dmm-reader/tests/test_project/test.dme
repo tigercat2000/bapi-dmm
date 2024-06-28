@@ -22,8 +22,9 @@
 		throw EXCEPTION("Connection bad")
 
 /test/proc/test_dmm_parsing()
-	var/datum/bapi_parsed_map/B = _bapidmm_parse_map_blocking("test_map.dmm")
+	var/datum/bapi_parsed_map/B = load_map("test_map.dmm")
 	ASSERT(B._internal_index != -1)
+	ASSERT(B.original_path == "test_map.dmm")
 	ASSERT(B.map_format == MAP_DMM)
 	ASSERT(B.key_len == 1)
 	ASSERT(B.line_len == 10)
@@ -31,8 +32,9 @@
 		CRASH("Expected bounds to be list(1, 1, 1, 10, 10, 1), but found [json_encode(B.bounds)]")
 
 /test/proc/test_tgm_parsing()
-	var/datum/bapi_parsed_map/B = _bapidmm_parse_map_blocking("test_map_tgm.dmm")
+	var/datum/bapi_parsed_map/B = load_map("test_map_tgm.dmm")
 	ASSERT(B._internal_index != -1)
+	ASSERT(B.original_path == "test_map_tgm.dmm")
 	ASSERT(B.map_format == MAP_TGM)
 	ASSERT(B.key_len == 1)
 	ASSERT(B.line_len == 1)

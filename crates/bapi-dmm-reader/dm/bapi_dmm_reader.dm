@@ -97,4 +97,57 @@
 	new_z = FALSE,
 )
 	if(!(dmm_file in cached_maps))
-		cached_maps[dmm_file] = _bapidmm_parse_map_blocking(dmm_file)
+		cached_maps[dmm_file] = new /datum/bapi_parsed_map(dmm_file)
+
+	var/datum/bapi_parsed_map/parsed_map = cached_maps[dmm_file]
+	parsed_map = parsed_map.copy()
+	if(!measure_only && !isnull(parsed_map.bounds))
+		parsed_map.load(x_offset, y_offset, z_offset, crop_map, no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper, place_on_top, new_z)
+	return parsed_map
+
+/datum/bapi_parsed_map/New(tfile)
+	if(isnull(tfile))
+		return // create a new datum without loading a map
+	var/ret = _bapidmm_parse_map_blocking(tfile, src)
+	if(!ret)
+		CRASH("Failed to load map [tfile], check rust_log.txt")
+
+/datum/bapi_parsed_map/proc/copy()
+	// Avoids duped work just in case
+	build_cache()
+	var/datum/bapi_parsed_map/newfriend = new()
+	// use the same under the hood data
+	newfriend._internal_index = _internal_index
+	newfriend.original_path = original_path
+	newfriend.map_format = map_format
+	newfriend.key_len = key_len
+	newfriend.line_len = line_len
+	// newfriend.grid_models = grid_models.Copy()
+	// newfriend.gridSets = gridSets.Copy()
+	// newfriend.modelCache = modelCache.Copy()
+	newfriend.parsed_bounds = parsed_bounds.Copy()
+	// Copy parsed bounds to reset to initial values
+	newfriend.bounds = parsed_bounds.Copy()
+	// newfriend.turf_blacklist = turf_blacklist?.Copy()
+	return newfriend
+
+/datum/bapi_parsed_map/proc/build_cache()
+	return
+
+/datum/bapi_parsed_map/proc/load(
+	x_offset = 0,
+	y_offset = 0,
+	z_offset = 0,
+	crop_map = FALSE,
+	measure_only = FALSE,
+	no_changeturf = FALSE,
+	x_lower = -INFINITY,
+	x_upper = INFINITY,
+	y_lower = -INFINITY,
+	y_upper = INFINITY,
+	z_lower = -INFINITY,
+	z_upper = INFINITY,
+	place_on_top = FALSE,
+	new_z = FALSE,
+)
+	return
