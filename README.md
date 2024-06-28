@@ -1,4 +1,7 @@
-# rust dmm loader
+# bapiDMM
+<hr>
+
+![bapi dmm logo](./bapidmm.png)
 
 it loads dmms
 
