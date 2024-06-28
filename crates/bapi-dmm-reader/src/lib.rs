@@ -4,6 +4,8 @@ use std::cell::RefCell;
 use crate::_compat::setup_panic_handler;
 
 #[ouroboros::self_referencing]
+/// This self-referencing structure holds a loaded map file in memory plus many
+/// views into the map file, in the form of `&str`s from dmm_lite's `winnow` parser
 struct Map {
     map_data: String,
     #[borrows(map_data)]
@@ -12,6 +14,7 @@ struct Map {
 }
 
 thread_local! {
+    /// Note on thread_locals: We only ever access this from the main BYOND thread, which is also where our DLL is loaded
     pub static PARSED_MAPS: RefCell<Vec<Map>> = const { RefCell::new(vec![]) };
 }
 
