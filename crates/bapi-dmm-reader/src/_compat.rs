@@ -22,6 +22,7 @@ pub fn setup_panic_handler() {
 #[byondapi::bind]
 /// Returns "10" if loaded correctly
 pub fn _bapidmm_test_connection() {
+    setup_panic_handler();
     Ok(ByondValue::new_num(10f32))
 }
 

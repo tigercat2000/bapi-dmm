@@ -174,8 +174,8 @@
 	place_on_top = FALSE,
 	new_z = FALSE,
 )
-	// Master.StartLoadingMap()
-	// SSatoms.map_loader_begin(REF(src))
+	Master.StartLoadingMap()
+	SSatoms.map_loader_begin(REF(src))
 	. =  _bapidmm_load_map(
 		src,
 		x_offset,
@@ -192,8 +192,10 @@
 		place_on_top,
 		new_z
 	)
-	// SSatoms.map_loader_stop(REF(src))
-	// Master.StopLoadingMap()
+	SSatoms.map_loader_stop(REF(src))
+	Master.StopLoadingMap()
+
+	// TODO: AfterChange, bounds, SEND_GLOBAL_SIGNAL
 
 /datum/bapi_parsed_map/proc/has_warnings()
 	if(length(loaded_warnings))
@@ -216,14 +218,11 @@
 
 /proc/_bapi_expand_map(x, y, z)
 	if(x > world.maxx)
-		// world.increase_max_x(x)
-		world.maxx = x
+		world.increase_max_x(x)
 	if(y > world.maxy)
-		// world.increase_max_y(y)
-		world.maxy = y
+		world.increase_max_y(y)
 	if(z > world.maxz)
-		// world.increase_max_z(z)
-		world.maxz = z
+		world.increase_max_z(z)
 
 /proc/_bapi_create_atom(path, crds)
 	set waitfor = FALSE
@@ -276,3 +275,7 @@
 
 /proc/_bapi_add_turf_to_area(area/A, turf/T)
 	A.contents.Add(T)
+
+#undef MAP_DMM
+#undef MAP_TGM
+#undef MAP_UNKNOWN

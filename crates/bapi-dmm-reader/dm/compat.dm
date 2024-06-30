@@ -110,7 +110,27 @@ var/global/areas_by_type = list()
 		} \
 	}
 
-
 // These paths need to exist even if they cannot be spawned
 /turf/template_noop
 /area/template_noop
+
+// Subsystem stuff
+var/global/datum/controller/subsystem/atoms/SSatoms = new()
+
+/datum/controller/subsystem/atoms
+/datum/controller/subsystem/atoms/proc/map_loader_begin(source)
+/datum/controller/subsystem/atoms/proc/map_loader_stop(source)
+
+var/global/datum/controller/master/Master = new()
+/datum/controller/master
+/datum/controller/master/proc/StartLoadingMap()
+/datum/controller/master/proc/StopLoadingMap()
+
+/world/proc/increase_max_x(x)
+	world.maxx = x
+
+/world/proc/increase_max_y(y)
+	world.maxy = y
+
+/world/proc/increase_max_z(z)
+	world.maxz = z

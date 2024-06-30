@@ -11,7 +11,7 @@ use byondapi::{
 use dmm_lite::prefabs::Literal;
 use eyre::eyre;
 
-use crate::{ouroboros_impl_map::Map, PARSED_MAPS};
+use crate::{_compat::setup_panic_handler, ouroboros_impl_map::Map, PARSED_MAPS};
 
 #[byondapi::bind]
 pub fn _bapidmm_load_map(
@@ -30,6 +30,7 @@ pub fn _bapidmm_load_map(
     place_on_top: ByondValue,
     new_z: ByondValue,
 ) {
+    setup_panic_handler();
     let id = parsed_map
         .read_number("_internal_index")
         .map_err(|e| eyre!("Unable to read /datum/bapi_parsed_map/_internal_index: {e:#?}"))?;
@@ -80,7 +81,7 @@ pub fn _bapidmm_load_map(
 
         parsed_map.write_var("loading", &ByondValue::new_num(0.))?;
 
-        Ok(ByondValue::null())
+        Ok(ByondValue::new_num(1.))
     })
 }
 
@@ -133,14 +134,18 @@ fn load_map_impl(
 
     let mut created_areas: HashMap<&str, ByondValue> = HashMap::new();
 
-    for (top_left, block) in blocks {
-        for (map_y_offset, line) in block.iter().enumerate() {
+    // TODO: `bounds` needs to be recalculated to reflect all real coordinates we modified
+
+    for (bottom_left, block) in blocks {
+        // We have to reverse and THEN enumerate this to translate from
+        // origin TOP left to origin BOTTOM left
+        for (map_y_offset, line) in block.iter().rev().enumerate() {
             let turfs = separate_turfs(line, key_len as usize);
             for (map_x_offset, prefab_key) in turfs.enumerate() {
                 let relative_coord = (
-                    top_left.0 + map_x_offset,
-                    top_left.1 + map_y_offset,
-                    top_left.2,
+                    bottom_left.0 + map_x_offset,
+                    bottom_left.1 + map_y_offset,
+                    bottom_left.2,
                 );
 
                 // Skip anything outside of our relative bounds
@@ -153,10 +158,11 @@ fn load_map_impl(
                 }
 
                 // Calculate absolute position
+                // This is offset - 1 because (1,1,1) actually goes *at* offset
                 let exact_coord = (
-                    relative_coord.0 + offset.0 as usize,
-                    relative_coord.1 + offset.1 as usize,
-                    relative_coord.2 + offset.2 as usize,
+                    relative_coord.0 + offset.0 as usize - 1,
+                    relative_coord.1 + offset.1 as usize - 1,
+                    relative_coord.2 + offset.2 as usize - 1,
                 );
 
                 // This will just guaranteed fail to locate a turf
@@ -433,6 +439,25 @@ fn convert_literal_to_byondvalue(
 
             list
         }
-        Literal::AssocList(_) => todo!(),
+        Literal::AssocList(map) => {
+            let mut list = ByondValue::new_list()?;
+
+            for (list_key, lit) in map.iter() {
+                match convert_literal_to_byondvalue(parsed_map, key, lit) {
+                    Ok(item) => list.write_list_index(ByondValue::new_str(*list_key)?, item)?,
+                    Err(e) => {
+                        parsed_map.call(
+                            "_bapi_add_warning",
+                            &[ByondValue::new_str(format!(
+                                "Inside list inside {:#?}, failed to parse value: {e:#?}",
+                                key
+                            ))?],
+                        )?;
+                    }
+                }
+            }
+
+            list
+        }
     })
 }
