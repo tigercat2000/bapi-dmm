@@ -134,7 +134,8 @@ fn load_map_impl(
 
     let mut created_areas: HashMap<&str, ByondValue> = HashMap::new();
 
-    // TODO: `bounds` needs to be recalculated to reflect all real coordinates we modified
+    // (minx, miny, minz, maxx, maxy, maxz)
+    let mut bounds = (0, 0, 0, 0, 0, 0);
 
     for (bottom_left, block) in blocks {
         // We have to reverse and THEN enumerate this to translate from
@@ -181,7 +182,7 @@ fn load_map_impl(
                     if crop_map {
                         continue;
                     } else {
-                        call_global(
+                        parsed_map.call(
                             "_bapi_expand_map",
                             &[
                                 ByondValue::new_num(exact_coord.0 as f32),
@@ -229,6 +230,15 @@ fn load_map_impl(
                         )?;
                         continue;
                     }
+
+                    // This is the point where we are committed, we are GOING to put something at this coord
+                    // Accordingly, this is where we calculate bounds
+                    bounds.0 = bounds.0.min(exact_coord.0);
+                    bounds.1 = bounds.1.min(exact_coord.1);
+                    bounds.2 = bounds.2.min(exact_coord.2);
+                    bounds.3 = bounds.3.max(exact_coord.0);
+                    bounds.4 = bounds.4.max(exact_coord.1);
+                    bounds.5 = bounds.5.max(exact_coord.2);
 
                     let mut prefab_list = prefab.iter().rev();
                     // Above check ensures that these cannot panic
@@ -314,6 +324,17 @@ fn load_map_impl(
             }
         }
     }
+
+    let new_list = ByondValue::new_list()?;
+    new_list.write_list(&[
+        ByondValue::new_num(bounds.0 as f32),
+        ByondValue::new_num(bounds.1 as f32),
+        ByondValue::new_num(bounds.2 as f32),
+        ByondValue::new_num(bounds.3 as f32),
+        ByondValue::new_num(bounds.4 as f32),
+        ByondValue::new_num(bounds.5 as f32),
+    ])?;
+    parsed_map.write_var("bounds", &new_list)?;
 
     Ok(())
 }

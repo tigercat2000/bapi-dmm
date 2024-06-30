@@ -53,8 +53,8 @@
 	var/map_format = MAP_UNKNOWN
 	var/key_len = 0
 	var/line_len = 0
-	var/expanded_y = 0
-	var/expanded_x = 0
+	var/expanded_y = FALSE
+	var/expanded_x = FALSE
 
 	/// Unoffset bounds. Null on parse failure.
 	var/list/bounds = list()
@@ -87,9 +87,9 @@
  */
 /proc/load_map(
 	dmm_file,
-	x_offset = 0,
-	y_offset = 0,
-	z_offset = 0,
+	x_offset = 1,
+	y_offset = 1,
+	z_offset = 1,
 	crop_map = FALSE,
 	measure_only = FALSE,
 	no_changeturf = FALSE,
@@ -160,9 +160,9 @@
 	}
 
 /datum/bapi_parsed_map/proc/load(
-	x_offset = 0,
-	y_offset = 0,
-	z_offset = 0,
+	x_offset = 1,
+	y_offset = 1,
+	z_offset = 1,
 	crop_map = FALSE,
 	no_changeturf = FALSE,
 	x_lower = -INFINITY,
@@ -175,8 +175,28 @@
 	new_z = FALSE,
 )
 	Master.StartLoadingMap()
+	. = _load_impl(x_offset, y_offset, z_offset, crop_map, no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper, place_on_top, new_z)
+	Master.StopLoadingMap()
+
+/datum/bapi_parsed_map/proc/_load_impl(
+	x_offset = 1,
+	y_offset = 1,
+	z_offset = 1,
+	crop_map = FALSE,
+	no_changeturf = FALSE,
+	x_lower = -INFINITY,
+	x_upper = INFINITY,
+	y_lower = -INFINITY,
+	y_upper = INFINITY,
+	z_lower = -INFINITY,
+	z_upper = INFINITY,
+	place_on_top = FALSE,
+	new_z = FALSE,
+)
+	PRIVATE_PROC(TRUE)
 	SSatoms.map_loader_begin(REF(src))
-	. =  _bapidmm_load_map(
+	// `loading` var handled by bapidmm
+	var/successful =  _bapidmm_load_map(
 		src,
 		x_offset,
 		y_offset,
@@ -193,9 +213,23 @@
 		new_z
 	)
 	SSatoms.map_loader_stop(REF(src))
-	Master.StopLoadingMap()
 
-	// TODO: AfterChange, bounds, SEND_GLOBAL_SIGNAL
+	if(new_z)
+		for(var/z_index in bounds[MAP_MINZ] to bounds[MAP_MAXZ])
+			SSmapping.build_area_turfs(z_index)
+
+	if(!no_changeturf)
+		var/list/turfs = block(
+			locate(bounds[MAP_MINX], bounds[MAP_MINY], bounds[MAP_MINZ]),
+			locate(bounds[MAP_MAXX], bounds[MAP_MAXY], bounds[MAP_MAXZ]))
+		for(var/turf/T as anything in turfs)
+			//we do this after we load everything in. if we don't, we'll have weird atmos bugs regarding atmos adjacent turfs
+			T.AfterChange(CHANGETURF_IGNORE_AIR)
+
+	if(expanded_x || expanded_y)
+		SEND_GLOBAL_SIGNAL(COMSIG_GLOB_EXPANDED_WORLD_BOUNDS, expanded_x, expanded_y)
+
+	return successful
 
 /datum/bapi_parsed_map/proc/has_warnings()
 	if(length(loaded_warnings))
@@ -207,6 +241,16 @@
 /datum/bapi_parsed_map/proc/_bapi_add_warning(warning)
 	loaded_warnings += list(warning)
 
+/datum/bapi_parsed_map/proc/_bapi_expand_map(x, y, z)
+	if(x > world.maxx)
+		expanded_x = TRUE
+		world.increase_max_x(x)
+	if(y > world.maxy)
+		expanded_y = TRUE
+		world.increase_max_y(y)
+	if(z > world.maxz)
+		world.increase_max_z(z)
+
 /proc/_bapi_helper_get_world_bounds()
 	return list(world.maxx, world.maxy, world.maxz)
 
@@ -215,14 +259,6 @@
 
 /proc/_bapi_helper_text2file(text)
 	return file(text)
-
-/proc/_bapi_expand_map(x, y, z)
-	if(x > world.maxx)
-		world.increase_max_x(x)
-	if(y > world.maxy)
-		world.increase_max_y(y)
-	if(z > world.maxz)
-		world.increase_max_z(z)
 
 /proc/_bapi_create_atom(path, crds)
 	set waitfor = FALSE
@@ -276,6 +312,6 @@
 /proc/_bapi_add_turf_to_area(area/A, turf/T)
 	A.contents.Add(T)
 
-#undef MAP_DMM
-#undef MAP_TGM
-#undef MAP_UNKNOWN
+// #undef MAP_DMM
+// #undef MAP_TGM
+// #undef MAP_UNKNOWN

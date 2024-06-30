@@ -18,6 +18,7 @@ var/global/list/cached_maps = list()
 #define QDEL_HINT_HARDDEL_NOW 4
 #define TICK_CHECK FALSE
 #define CHANGETURF_DEFER_CHANGE (1<<0)
+#define CHANGETURF_IGNORE_AIR (1<<1) // This flag prevents changeturf from gathering air from nearby turfs to fill the new turf with an approximation of local air
 #define CHANGETURF_SKIP (1<<3) // A flag for PlaceOnTop to just instance the new turf instead of calling ChangeTurf. Used for uninitialized turfs NOTHING ELSE
 #define ALL (~0) //For convenience.
 #define NONE 0
@@ -126,6 +127,10 @@ var/global/datum/controller/master/Master = new()
 /datum/controller/master/proc/StartLoadingMap()
 /datum/controller/master/proc/StopLoadingMap()
 
+var/global/datum/controller/subsystem/mapping/SSmapping = new()
+/datum/controller/subsystem/mapping
+/datum/controller/subsystem/mapping/proc/build_area_turfs(z_index)
+
 /world/proc/increase_max_x(x)
 	world.maxx = x
 
@@ -134,3 +139,31 @@ var/global/datum/controller/master/Master = new()
 
 /world/proc/increase_max_z(z)
 	world.maxz = z
+
+#define PRIVATE_PROC(X)
+/// sent after world.maxx and/or world.maxy are expanded: (has_exapnded_world_maxx, has_expanded_world_maxy)
+#define COMSIG_GLOB_EXPANDED_WORLD_BOUNDS "!expanded_world_bounds"
+
+#define SEND_GLOBAL_SIGNAL(sigtype, arguments...)
+
+/// Takes a datum as input, returns its ref string
+#define text_ref(datum) ref(datum)
+
+/**
+ * \ref behaviour got changed in 512 so this is necesary to replicate old behaviour.
+ * If it ever becomes necesary to get a more performant REF(), this lies here in wait
+ * #define REF(thing) (thing && isdatum(thing) && (thing:datum_flags & DF_USE_TAG) && thing:tag ? "[thing:tag]" : text_ref(thing))
+**/
+/proc/REF(input)
+	// if(isdatum(input))
+	// 	var/datum/thing = input
+	// 	if(thing.datum_flags & DF_USE_TAG)
+	// 		if(!thing.tag)
+	// 			stack_trace("A ref was requested of an object with DF_USE_TAG set but no tag: [thing]")
+	// 			thing.datum_flags &= ~DF_USE_TAG
+	// 		else
+	// 			return "\[[url_encode(thing.tag)]\]"
+	return text_ref(input)
+
+//If you modify this function, ensure it works correctly with lateloaded map templates.
+/turf/proc/AfterChange(flags, oldType) //called after a turf has been replaced in ChangeTurf()
