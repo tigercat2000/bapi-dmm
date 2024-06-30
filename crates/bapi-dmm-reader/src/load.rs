@@ -188,6 +188,8 @@ fn load_map_impl(
                                 ByondValue::new_num(exact_coord.0 as f32),
                                 ByondValue::new_num(exact_coord.1 as f32),
                                 ByondValue::new_num(exact_coord.2 as f32),
+                                ByondValue::new_num(if new_z { 1. } else { 0. }),
+                                ByondValue::new_num(offset.2),
                             ],
                         )?;
                     }

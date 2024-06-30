@@ -241,13 +241,19 @@
 /datum/bapi_parsed_map/proc/_bapi_add_warning(warning)
 	loaded_warnings += list(warning)
 
-/datum/bapi_parsed_map/proc/_bapi_expand_map(x, y, z)
+/datum/bapi_parsed_map/proc/_bapi_expand_map(x, y, z, new_z, z_offset)
 	if(x > world.maxx)
 		expanded_x = TRUE
-		world.increase_max_x(x)
+		if(new_z)
+			world.increase_max_x(x, map_load_z_cutoff = z_offset - 1)
+		else
+			world.increase_max_x(x)
 	if(y > world.maxy)
 		expanded_y = TRUE
-		world.increase_max_y(y)
+		if(new_z)
+			world.increase_max_y(y, map_load_z_cutoff = z_offset - 1)
+		else
+			world.increase_max_y(y)
 	if(z > world.maxz)
 		world.increase_max_z(z)
 

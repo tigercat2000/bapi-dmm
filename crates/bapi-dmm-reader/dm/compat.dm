@@ -131,10 +131,10 @@ var/global/datum/controller/subsystem/mapping/SSmapping = new()
 /datum/controller/subsystem/mapping
 /datum/controller/subsystem/mapping/proc/build_area_turfs(z_index)
 
-/world/proc/increase_max_x(x)
+/world/proc/increase_max_x(x, map_load_z_cutoff = 0)
 	world.maxx = x
 
-/world/proc/increase_max_y(y)
+/world/proc/increase_max_y(y, map_load_z_cutoff = 0)
 	world.maxy = y
 
 /world/proc/increase_max_z(z)
