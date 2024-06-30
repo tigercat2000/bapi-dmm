@@ -13,6 +13,9 @@
 /turf/turf_type_b
 	color = "#00FF00"
 
+/turf/placed_at_runtime
+/area/placed_at_runtime
+
 /world/New()
 	world.log = file("dd_log.txt")
 
@@ -88,8 +91,7 @@
 /test/proc/test_loading_modified_prefab()
 	var/before_bounds = _bapi_helper_get_world_bounds()
 	var/datum/bapi_parsed_map/B = load_map("prefab.dmm")
-	ASSERT(B.has_warnings() == TRUE)
-	ASSERT(length(B.loaded_warnings) == 2) // Intentionally has one bad var
+	ASSERT(B.has_warnings() == FALSE)
 	ASSERT(B._internal_index != 1)
 	var/count = 0
 	for(var/obj/modified/O in world)
@@ -97,3 +99,25 @@
 		ASSERT(initial(O.name) == "hehe")
 		ASSERT(O.name == "not_hehe")
 	ASSERT(count == 2)
+
+/test/proc/test_turf_and_area()
+	var/datum/bapi_parsed_map/B = load_map("turf_and_area.dmm")
+	ASSERT(B.has_warnings() == FALSE)
+	ASSERT(B._internal_index != 1)
+	var/area/placed_at_runtime/A = locate()
+	ASSERT(A != null)
+	var/count = 0
+	for(var/turf/placed_at_runtime/P in world)
+		ASSERT(P.loc == A)
+		count += 1
+	ASSERT(count == 2)
+	
+	count = 0
+	for(var/turf/template_noop/T in world)
+		count += 1
+	ASSERT(count == 0)
+
+	count = 0
+	for(var/area/template_noop/whatever in world)
+		count += 1
+	ASSERT(count == 0)

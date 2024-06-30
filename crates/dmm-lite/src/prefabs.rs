@@ -68,7 +68,7 @@ pub fn parse_prefab_data<'s>(i: &mut &'s str) -> PResult<&'s str> {
     }
 }
 
-type Prefab<'s> = (&'s str, Option<Vec<(&'s str, Literal<'s>)>>);
+pub type Prefab<'s> = (&'s str, Option<Vec<(&'s str, Literal<'s>)>>);
 pub fn parse_prefab<'s>(i: &mut &'s str) -> PResult<Prefab<'s>> {
     alt((
         (parse_path, parse_var_list)

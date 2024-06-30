@@ -148,6 +148,17 @@
 /datum/bapi_parsed_map/proc/build_cache()
 	return
 
+#define MAPLOADING_CHECK_TICK \
+	if(TICK_CHECK) { \
+		if(loading) { \
+			SSatoms.map_loader_stop(REF(src)); \
+			stoplag(); \
+			SSatoms.map_loader_begin(REF(src)); \
+		} else { \
+			stoplag(); \
+		} \
+	}
+
 /datum/bapi_parsed_map/proc/load(
 	x_offset = 0,
 	y_offset = 0,
@@ -189,6 +200,7 @@
 		return TRUE
 	return FALSE
 
+
 // Internal bapi-dmm helpers
 /datum/bapi_parsed_map/proc/_bapi_add_warning(warning)
 	loaded_warnings += list(warning)
@@ -212,3 +224,55 @@
 	if(z > world.maxz)
 		// world.increase_max_z(z)
 		world.maxz = z
+
+/proc/_bapi_create_atom(path, crds)
+	set waitfor = FALSE
+	. = new path (crds)
+
+/proc/_bapi_new_atom(text_path, turf/crds, list/attributes)
+	var/path = text2path(text_path)
+	if(attributes != null)
+		world.preloader_setup(attributes, path)
+
+	var/atom/instance = _bapi_create_atom(path, crds) // first preloader pass
+
+	if(use_preloader && instance) // second preloader pass for atoms that don't ..() in New()
+		world.preloader_load(instance)
+
+/proc/_bapi_create_or_get_area(text_path)
+	var/path = text2path(text_path)
+
+	var/area/area_instance = areas_by_type[path]
+	if(!area_instance)
+		area_instance = new path(null)
+		if(!area_instance)
+			CRASH("[path] failed to be new'd, what'd you do?")
+
+	return area_instance
+
+/proc/_bapi_handle_area_contain(turf/T, area/A)
+	var/area/old_area = T.loc
+	LISTASSERTLEN(old_area.turfs_to_uncontain_by_zlevel, T.z, list())
+	LISTASSERTLEN(A.turfs_by_zlevel, T.z, list())
+	old_area.turfs_to_uncontain_by_zlevel[T.z] += T
+	A.turfs_by_zlevel[T.z] += T
+	return old_area
+
+/proc/_bapi_create_turf(turf/crds, text_path, list/attributes, place_on_top, no_changeturf)
+	var/path = text2path(text_path)
+	if(attributes != null)
+		world.preloader_setup(attributes, path)
+
+	var/atom/instance
+	if(place_on_top)
+		instance = crds.load_on_top(path, CHANGETURF_DEFER_CHANGE | (no_changeturf ? CHANGETURF_SKIP : NONE))
+	else if(no_changeturf)
+		instance = _bapi_create_atom(path, crds)
+	else
+		instance = crds.ChangeTurf(path, null, CHANGETURF_DEFER_CHANGE)
+
+	if(use_preloader && instance) // second preloader pass for atoms that don't ..() in New()
+		world.preloader_load(instance)
+
+/proc/_bapi_add_turf_to_area(area/A, turf/T)
+	A.contents.Add(T)
