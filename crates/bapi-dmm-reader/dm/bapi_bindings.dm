@@ -11,11 +11,18 @@
 
 #define BAPI_DMM_READER (__bapi_dmm_reader || __detect_bapi_dmm_reader())
     
-/proc/_bapidmm_clear_map_data()
-	return call_ext(BAPI_DMM_READER, "byond:_bapidmm_clear_map_data_ffi")()
+/proc/_bapidmm_load_map(parsed_map, x_offset, y_offset, z_offset, crop_map,
+no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper,
+place_on_top, new_z)
+	return call_ext(BAPI_DMM_READER, "byond:_bapidmm_load_map_ffi")(parsed_map, x_offset, y_offset, z_offset, crop_map,
+no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper,
+place_on_top, new_z)
 
 /proc/_bapidmm_parse_map_blocking(dmm_file, map_datum)
 	return call_ext(BAPI_DMM_READER, "byond:_bapidmm_parse_map_blocking_ffi")(dmm_file, map_datum)
+
+/proc/_bapidmm_clear_map_data()
+	return call_ext(BAPI_DMM_READER, "byond:_bapidmm_clear_map_data_ffi")()
 
 /proc/_bapidmm_test_connection()
 	return call_ext(BAPI_DMM_READER, "byond:_bapidmm_test_connection_ffi")()

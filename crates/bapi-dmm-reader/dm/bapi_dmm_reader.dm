@@ -56,10 +56,16 @@
 	var/expanded_y = 0
 	var/expanded_x = 0
 
+	/// Unoffset bounds. Null on parse failure.
 	var/list/bounds = list()
+	/// Offset bounds. Same as parsed_bounds until load().
 	var/list/parsed_bounds = list()
 
+	///any turf in this list is skipped inside of build_coordinate. Lazy assoc list
+	var/list/turf_blacklist
+
 	var/loading = FALSE
+	var/loaded_warnings = list()
 
 /**
  * Helper and recommened way to load a map file
@@ -112,23 +118,31 @@
 	if(!ret)
 		CRASH("Failed to load map [tfile], check rust_log.txt")
 
+/datum/bapi_parsed_map/Destroy()
+	..()
+	// SSatoms.map_loader_stop(REF(src)) // Just in case, I don't want to double up here
+	if(turf_blacklist)
+		turf_blacklist.Cut()
+	parsed_bounds.Cut()
+	bounds.Cut()
+	return QDEL_HINT_HARDDEL_NOW
+
+
 /datum/bapi_parsed_map/proc/copy()
 	// Avoids duped work just in case
 	build_cache()
 	var/datum/bapi_parsed_map/newfriend = new()
-	// use the same under the hood data
+	// use the same under-the-hood data
 	newfriend._internal_index = _internal_index
 	newfriend.original_path = original_path
 	newfriend.map_format = map_format
 	newfriend.key_len = key_len
 	newfriend.line_len = line_len
-	// newfriend.grid_models = grid_models.Copy()
-	// newfriend.gridSets = gridSets.Copy()
-	// newfriend.modelCache = modelCache.Copy()
 	newfriend.parsed_bounds = parsed_bounds.Copy()
 	// Copy parsed bounds to reset to initial values
 	newfriend.bounds = parsed_bounds.Copy()
-	// newfriend.turf_blacklist = turf_blacklist?.Copy()
+	newfriend.turf_blacklist = turf_blacklist?.Copy()
+	// Explicitly do NOT copy `loaded` and `loaded_warnings`
 	return newfriend
 
 /datum/bapi_parsed_map/proc/build_cache()
@@ -139,7 +153,6 @@
 	y_offset = 0,
 	z_offset = 0,
 	crop_map = FALSE,
-	measure_only = FALSE,
 	no_changeturf = FALSE,
 	x_lower = -INFINITY,
 	x_upper = INFINITY,
@@ -150,4 +163,52 @@
 	place_on_top = FALSE,
 	new_z = FALSE,
 )
-	return
+	// Master.StartLoadingMap()
+	// SSatoms.map_loader_begin(REF(src))
+	. =  _bapidmm_load_map(
+		src,
+		x_offset,
+		y_offset,
+		z_offset,
+		crop_map,
+		no_changeturf,
+		x_lower,
+		x_upper,
+		y_lower,
+		y_upper,
+		z_lower,
+		z_upper,
+		place_on_top,
+		new_z
+	)
+	// SSatoms.map_loader_stop(REF(src))
+	// Master.StopLoadingMap()
+
+/datum/bapi_parsed_map/proc/has_warnings()
+	if(length(loaded_warnings))
+		return TRUE
+	return FALSE
+
+// Internal bapi-dmm helpers
+/datum/bapi_parsed_map/proc/_bapi_add_warning(warning)
+	loaded_warnings += list(warning)
+
+/proc/_bapi_helper_get_world_bounds()
+	return list(world.maxx, world.maxy, world.maxz)
+
+/proc/_bapi_helper_text2path(text)
+	return text2path(text)
+
+/proc/_bapi_helper_text2file(text)
+	return file(text)
+
+/proc/_bapi_expand_map(x, y, z)
+	if(x > world.maxx)
+		// world.increase_max_x(x)
+		world.maxx = x
+	if(y > world.maxy)
+		// world.increase_max_y(y)
+		world.maxy = y
+	if(z > world.maxz)
+		// world.increase_max_z(z)
+		world.maxz = z

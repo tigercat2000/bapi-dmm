@@ -2,6 +2,12 @@
 #include "bapi_dmm_reader.dm"
 #define DEBUG
 
+/obj/placed_at_runtime
+	name = "hehe"
+
+/obj/modified
+	name = "hehe"
+
 /turf/turf_type_a
 	color = "#FF0000"
 /turf/turf_type_b
@@ -22,7 +28,8 @@
 		throw EXCEPTION("Connection bad")
 
 /test/proc/test_dmm_parsing()
-	var/datum/bapi_parsed_map/B = load_map("test_map.dmm")
+	var/datum/bapi_parsed_map/B = load_map("test_map.dmm", measure_only = TRUE)
+	ASSERT(B.has_warnings() == FALSE)
 	ASSERT(B._internal_index != -1)
 	ASSERT(B.original_path == "test_map.dmm")
 	ASSERT(B.map_format == MAP_DMM)
@@ -32,7 +39,8 @@
 		CRASH("Expected bounds to be list(1, 1, 1, 10, 10, 1), but found [json_encode(B.bounds)]")
 
 /test/proc/test_tgm_parsing()
-	var/datum/bapi_parsed_map/B = load_map("test_map_tgm.dmm")
+	var/datum/bapi_parsed_map/B = load_map("test_map_tgm.dmm", measure_only = TRUE)
+	ASSERT(B.has_warnings() == FALSE)
 	ASSERT(B._internal_index != -1)
 	ASSERT(B.original_path == "test_map_tgm.dmm")
 	ASSERT(B.map_format == MAP_TGM)
@@ -40,3 +48,52 @@
 	ASSERT(B.line_len == 1)
 	if(B.bounds ~! list(1, 1, 1, 10, 10, 1))
 		CRASH("Expected bounds to be list(1, 1, 1, 10, 10, 1), but found [json_encode(B.bounds)]")
+
+/test/proc/test_loading()
+	var/datum/bapi_parsed_map/B = load_map("load.dmm", 0, 0, 0)
+	ASSERT(B.has_warnings() == FALSE)
+	ASSERT(B._internal_index != 1)
+	var/count = 0
+	for(var/obj/placed_at_runtime/O in world)
+		count += 1
+	ASSERT(count == 2)
+
+/test/proc/test_loading_oob()
+	var/before_bounds = _bapi_helper_get_world_bounds()
+	var/datum/bapi_parsed_map/B = load_map("oob.dmm", 0, 0, 0, crop_map = TRUE)
+	ASSERT(B.has_warnings() == FALSE)
+	var/after_bounds = _bapi_helper_get_world_bounds()
+	ASSERT(before_bounds ~= after_bounds)
+	ASSERT(B._internal_index != 1)
+	var/count = 0
+	for(var/obj/placed_at_runtime/O in world)
+		count += 1
+	if(count != 7)
+		CRASH("Expected 7 placed_at_runtime objects, found [count]")
+
+// Must be after test_loading_oob or count will be off
+/test/proc/test_loading_oob_no_crop()
+	var/before_bounds = _bapi_helper_get_world_bounds()
+	var/datum/bapi_parsed_map/B = load_map("oob.dmm", 0, 0, 0, crop_map = FALSE)
+	ASSERT(B.has_warnings() == FALSE)
+	var/after_bounds = _bapi_helper_get_world_bounds()
+	ASSERT(before_bounds ~! after_bounds)
+	ASSERT(B._internal_index != 1)
+	var/count = 0
+	for(var/obj/placed_at_runtime/O in world)
+		count += 1
+	if(count != 29)
+		CRASH("Expected 29 placed_at_runtime objects, found [count]")
+
+/test/proc/test_loading_modified_prefab()
+	var/before_bounds = _bapi_helper_get_world_bounds()
+	var/datum/bapi_parsed_map/B = load_map("prefab.dmm")
+	ASSERT(B.has_warnings() == TRUE)
+	ASSERT(length(B.loaded_warnings) == 2) // Intentionally has one bad var
+	ASSERT(B._internal_index != 1)
+	var/count = 0
+	for(var/obj/modified/O in world)
+		count += 1
+		ASSERT(initial(O.name) == "hehe")
+		ASSERT(O.name == "not_hehe")
+	ASSERT(count == 2)

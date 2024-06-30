@@ -1,0 +1,6 @@
+"a" = (/obj/placed_at_runtime,/turf,/area)
+"b" = (/turf,/area)
+
+(1,1,1) = {"
+babababababababababababababababababababababa
+"}

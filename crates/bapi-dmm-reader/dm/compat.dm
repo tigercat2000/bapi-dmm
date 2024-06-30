@@ -18,3 +18,8 @@ var/global/list/cached_maps = list()
 
 /proc/stack_trace(msg)
 	CRASH(msg)
+
+/datum/proc/Destroy()
+	return
+
+#define QDEL_HINT_HARDDEL_NOW 4
