@@ -1,6 +1,11 @@
+#define DEBUG
+#define TESTING
+#define testing(msg) world.log << "## TESTING: [msg]"
+#include "meta_paths.dm"
 #include "test_map.dmm"
 #include "bapi_dmm_reader.dm"
-#define DEBUG
+#include "tests.dm"
+#include "old_loader.dm"
 
 /obj/placed_at_runtime
 	name = "hehe"
@@ -16,115 +21,22 @@
 /turf/placed_at_runtime
 /area/placed_at_runtime
 
+/world
+	sleep_offline = 0
+	fps = 20
+	cache_lifespan = 0
+
 /world/New()
 	world.log = file("dd_log.txt")
 
-	for(var/func in typesof(/test/proc))
-		world.log << "[func] [copytext("------------------------------------------------------------------------", length("[func]"))]"
-		call(new /test, func)()
+	HandleTestRun()
 
 	del(src)
 
-/test/proc/test_byondapi_connection()
-	var/ret = _bapidmm_test_connection()
-	if (ret != 10)
-		throw EXCEPTION("Connection bad")
-
-/test/proc/test_dmm_parsing()
-	var/datum/bapi_parsed_map/B = load_map("test_map.dmm", measure_only = TRUE)
-	if(B.has_warnings())
-		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
-	ASSERT(B._internal_index != -1)
-	ASSERT(B.original_path == "test_map.dmm")
-	ASSERT(B.map_format == MAP_DMM)
-	ASSERT(B.key_len == 1)
-	ASSERT(B.line_len == 10)
-	if(B.bounds ~! list(1, 1, 1, 10, 10, 1))
-		CRASH("Expected bounds to be list(1, 1, 1, 10, 10, 1), but found [json_encode(B.bounds)]")
-
-/test/proc/test_tgm_parsing()
-	var/datum/bapi_parsed_map/B = load_map("test_map_tgm.dmm", measure_only = TRUE)
-	if(B.has_warnings())
-		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
-	ASSERT(B._internal_index != -1)
-	ASSERT(B.original_path == "test_map_tgm.dmm")
-	ASSERT(B.map_format == MAP_TGM)
-	ASSERT(B.key_len == 1)
-	ASSERT(B.line_len == 1)
-	if(B.bounds ~! list(1, 1, 1, 10, 10, 1))
-		CRASH("Expected bounds to be list(1, 1, 1, 10, 10, 1), but found [json_encode(B.bounds)]")
-
-/test/proc/test_loading()
-	var/datum/bapi_parsed_map/B = load_map("load.dmm", 1, 1, 1)
-	if(B.has_warnings())
-		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
-	ASSERT(B._internal_index != 1)
-	var/count = 0
-	for(var/obj/placed_at_runtime/O in world)
-		count += 1
-	ASSERT(count == 2)
-
-/test/proc/test_loading_oob()
-	var/before_bounds = _bapi_helper_get_world_bounds()
-	var/datum/bapi_parsed_map/B = load_map("oob.dmm", 1, 1, 1, crop_map = TRUE)
-	if(B.has_warnings())
-		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
-	var/after_bounds = _bapi_helper_get_world_bounds()
-	ASSERT(before_bounds ~= after_bounds)
-	ASSERT(B._internal_index != 1)
-	var/count = 0
-	for(var/obj/placed_at_runtime/O in world)
-		count += 1
-	if(count != 7)
-		CRASH("Expected 7 placed_at_runtime objects, found [count]")
-
-// Must be after test_loading_oob or count will be off
-/test/proc/test_loading_oob_no_crop()
-	var/before_bounds = _bapi_helper_get_world_bounds()
-	var/datum/bapi_parsed_map/B = load_map("oob.dmm", 1, 1, 1, crop_map = FALSE)
-	if(B.has_warnings())
-		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
-	var/after_bounds = _bapi_helper_get_world_bounds()
-	ASSERT(before_bounds ~! after_bounds)
-	ASSERT(B._internal_index != 1)
-	var/count = 0
-	for(var/obj/placed_at_runtime/O in world)
-		count += 1
-	if(count != 29)
-		CRASH("Expected 29 placed_at_runtime objects, found [count]")
-
-/test/proc/test_loading_modified_prefab()
-	var/before_bounds = _bapi_helper_get_world_bounds()
-	var/datum/bapi_parsed_map/B = load_map("prefab.dmm")
-	if(B.has_warnings())
-		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
-	ASSERT(B._internal_index != 1)
-	var/count = 0
-	for(var/obj/modified/O in world)
-		count += 1
-		ASSERT(initial(O.name) == "hehe")
-		ASSERT(O.name == "not_hehe")
-	ASSERT(count == 2)
-
-/test/proc/test_turf_and_area()
-	var/datum/bapi_parsed_map/B = load_map("turf_and_area.dmm")
-	if(B.has_warnings())
-		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
-	ASSERT(B._internal_index != 1)
-	var/area/placed_at_runtime/A = locate()
-	ASSERT(A != null)
-	var/count = 0
-	for(var/turf/placed_at_runtime/P in world)
-		ASSERT(P.loc == A)
-		count += 1
-	ASSERT(count == 2)
-	
-	count = 0
-	for(var/turf/template_noop/T in world)
-		count += 1
-	ASSERT(count == 0)
-
-	count = 0
-	for(var/area/template_noop/whatever in world)
-		count += 1
-	ASSERT(count == 0)
+/world/proc/HandleTestRun()
+	var/list/tests = typesof(/test/proc)
+	for(var/func in tests)
+		world.log << "[func] [copytext("------------------------------------------------------------------------", length("[func]"))]"
+		var/test/T = new
+		call(T, func)()
+	world.log << "meow im done :)"

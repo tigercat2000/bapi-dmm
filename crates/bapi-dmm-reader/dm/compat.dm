@@ -1,5 +1,6 @@
 var/global/list/cached_maps = list()
 
+#define AREACOORD(src) "[src ? "[src.x][src.y][src.z]" : "nonexistent location"]"
 #define INFINITY 1e31
 
 // Maploader bounds indices
@@ -71,10 +72,10 @@ var/global/_preloader_path = null
 		if(islist(value))
 			value = deep_copy_list(value)
 		#ifdef TESTING
-		if(what.vars[attribute] == value)
-			var/message = "<font color=green>[what.type]</font> at [AREACOORD(what)] - <b>VAR:</b> <font color=red>[attribute] = [isnull(value) ? "null" : (isnum(value) ? value : "\"[value]\"")]</font>"
-			log_mapping("DIRTY VAR: [message]")
-			dirty_vars += message
+		// if(what.vars[attribute] == value)
+			// var/message = "<font color=green>[what.type]</font> at [AREACOORD(what)] - <b>VAR:</b> <font color=red>[attribute] = [isnull(value) ? "null" : (isnum(value) ? value : "\"[value]\"")]</font>"
+			// world.log << "DIRTY VAR: [message]"
+			// dirty_vars += message
 		#endif
 		what.vars[attribute] = value
 
@@ -88,6 +89,10 @@ var/global/areas_by_type = list()
 /area
 	var/list/turfs_to_uncontain_by_zlevel = list()
 	var/list/turfs_by_zlevel = list()
+
+/area/New()
+	. = ..()
+	areas_by_type[type] = src
 
 /turf/proc/on_change_area(area/old_area, area/new_area)
 	return
@@ -131,20 +136,27 @@ var/global/datum/controller/subsystem/mapping/SSmapping = new()
 /datum/controller/subsystem/mapping
 /datum/controller/subsystem/mapping/proc/build_area_turfs(z_index)
 
-/world/proc/increase_max_x(x, map_load_z_cutoff = 0)
-	world.maxx = x
+/world/proc/increase_max_x(new_maxx, map_load_z_cutoff = 0)
+	if(new_maxx <= maxx)
+		return
+	maxx = new_maxx
+	// world.log << "increase_max_x [maxx]"
 
-/world/proc/increase_max_y(y, map_load_z_cutoff = 0)
-	world.maxy = y
+/world/proc/increase_max_y(new_maxy, map_load_z_cutoff = 0)
+	if(new_maxy <= maxy)
+		return
+	maxy = new_maxy
+	// world.log << "increase_max_y [maxy]"
 
-/world/proc/increase_max_z(z)
-	world.maxz = z
+/world/proc/incrementMaxZ()
+	maxz++
+	// world.log << "incrementMaxZ to [maxz]"
 
 #define PRIVATE_PROC(X)
 /// sent after world.maxx and/or world.maxy are expanded: (has_exapnded_world_maxx, has_expanded_world_maxy)
 #define COMSIG_GLOB_EXPANDED_WORLD_BOUNDS "!expanded_world_bounds"
 
-#define SEND_GLOBAL_SIGNAL(sigtype, arguments...)
+#define SEND_GLOBAL_SIGNAL(sigtype, arguments...) world.log << "signal [sigtype]"
 
 /// Takes a datum as input, returns its ref string
 #define text_ref(datum) ref(datum)

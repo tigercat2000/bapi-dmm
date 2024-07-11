@@ -47,6 +47,7 @@ dependencies = [
  "memmap2",
  "ouroboros",
  "tempfile",
+ "tracy_full",
 ]
 
 [[package]]
@@ -158,6 +159,12 @@ name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
+
+[[package]]
+name = "cc"
+version = "1.0.103"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2755ff20a1d93490d26ba33a6f092a38a508398a5320df5d4b3014fcccce9410"
 
 [[package]]
 name = "cexpr"
@@ -961,6 +968,26 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "winnow 0.5.40",
+]
+
+[[package]]
+name = "tracy-client-sys"
+version = "0.22.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d104d610dfa9dd154535102cc9c6164ae1fa37842bc2d9e83f9ac82b0ae0882"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "tracy_full"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35e7992a48ab79a02b2b39220af68e831c8323036289fcb705b855799bc4539a"
+dependencies = [
+ "once_cell",
+ "rustc_version",
+ "tracy-client-sys",
 ]
 
 [[package]]

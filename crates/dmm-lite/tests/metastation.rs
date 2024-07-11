@@ -189,4 +189,27 @@ fn full_parse() {
     assert!(meta.is_tgm);
     assert_eq!(tgm_prefabs.len(), 8564);
     assert_eq!(tgm_blocks.len(), 255);
+
+    // Testing a problem
+    assert_eq!(
+        tgm_prefabs.get("cWy"),
+        Some(&vec![
+            (
+                "/obj/machinery/atmospherics/components/binary/pump",
+                Some(vec![
+                    ("dir", Literal::Number(8.)),
+                    ("name", Literal::String("Distro to Waste"))
+                ])
+            ),
+            (
+                "/obj/effect/turf_decal/tile/yellow",
+                Some(vec![("dir", Literal::Number(4.))])
+            ),
+            (
+                "/turf/open/floor/iron/dark/corner",
+                Some(vec![("dir", Literal::Number(1.))])
+            ),
+            ("/area/station/engineering/atmos/pumproom", None),
+        ])
+    );
 }

@@ -4,12 +4,13 @@ use std::collections::HashMap;
 
 // dmm_suite compatibility
 use byondapi::{
-    global_call::call_global,
+    global_call::{call_global, call_global_id},
     map::{byond_locatexyz, ByondXYZ},
     prelude::*,
 };
 use dmm_lite::prefabs::Literal;
 use eyre::eyre;
+use tracy_full::{frame, zone};
 
 use crate::{_compat::setup_panic_handler, ouroboros_impl_map::Map, PARSED_MAPS};
 
@@ -81,6 +82,8 @@ pub fn _bapidmm_load_map(
 
         parsed_map.write_var("loading", &ByondValue::new_num(0.))?;
 
+        frame!();
+
         Ok(ByondValue::new_num(1.))
     })
 }
@@ -118,12 +121,22 @@ fn load_map_impl(
     place_on_top: bool,
     new_z: bool,
 ) -> eyre::Result<()> {
+    zone!("load_map_impl");
     let data = internal_data.borrow_parsed_data();
 
     let prefabs = &data.1 .0;
     let blocks = &data.1 .1;
 
     let key_len = parsed_map.read_number("key_len")?;
+    let parsed_bounds = parsed_map.read_var("parsed_bounds")?;
+    let parsed_bounds = (
+        parsed_bounds.read_list_index(1.)?.get_number()? as usize,
+        parsed_bounds.read_list_index(2.)?.get_number()? as usize,
+        parsed_bounds.read_list_index(3.)?.get_number()? as usize,
+        parsed_bounds.read_list_index(4.)?.get_number()? as usize,
+        parsed_bounds.read_list_index(5.)?.get_number()? as usize,
+        parsed_bounds.read_list_index(6.)?.get_number()? as usize,
+    );
 
     let world_bounds = byondapi::global_call::call_global("_bapi_helper_get_world_bounds", &[])?;
     let world_bounds = (
@@ -133,9 +146,48 @@ fn load_map_impl(
     );
 
     let mut created_areas: HashMap<&str, ByondValue> = HashMap::new();
+    let mut path_map: HashMap<&str, ByondValue> = HashMap::new();
+
+    let world_turf = call_global("_bapi_helper_get_world_type_turf", &[])?.get_string()?;
+    let world_area = call_global("_bapi_helper_get_world_type_area", &[])?.get_string()?;
+
+    let space_key: Option<&str> = if no_changeturf {
+        prefabs.iter().find_map(|(key, prefab_list)| {
+            if prefab_list.len() != 2 {
+                return None;
+            }
+            match prefab_list[0] {
+                (turf, None) if turf == world_turf => {}
+                _ => return None,
+            }
+            match prefab_list[1] {
+                (area, None) if area == world_area => {}
+                _ => return None,
+            }
+            Some(*key)
+        })
+    } else {
+        None
+    };
+
+    // We know bounds ahead of time so we
+    let mut no_afterchange = no_changeturf;
+    if parsed_bounds.5 + (offset.2 as usize) - 1 > world_bounds.2 {
+        // z expansion
+        if !no_changeturf {
+            parsed_map.call(
+                "_bapi_add_warning",
+                &[ByondValue::new_str(
+                    "Z-level expansion occurred without no_changeturf set, this may cause problems when /turf/AfterChange is called, and therefore ChangeTurf will NOT be called"
+                )?],
+            )?;
+            no_afterchange = true; // force no_afterchange
+        }
+    }
 
     // (minx, miny, minz, maxx, maxy, maxz)
-    let mut bounds = (0, 0, 0, 0, 0, 0);
+    // starts at (1, 1, 1)
+    let mut bounds = (usize::MAX, usize::MAX, usize::MAX, 1, 1, 1);
 
     for (bottom_left, block) in blocks {
         // We have to reverse and THEN enumerate this to translate from
@@ -221,6 +273,10 @@ fn load_map_impl(
                     continue;
                 }
 
+                if Some(prefab_key) == space_key && no_afterchange {
+                    continue;
+                }
+
                 if let Some(prefab) = prefabs.get(prefab_key) {
                     // DMM prefab require that all prefab lists end with one /turf, and then one /area.
                     if prefab.len() < 2 {
@@ -242,6 +298,8 @@ fn load_map_impl(
                     bounds.4 = bounds.4.max(exact_coord.1);
                     bounds.5 = bounds.5.max(exact_coord.2);
 
+                    zone!("prefab creation");
+
                     let mut prefab_list = prefab.iter().rev();
                     // Above check ensures that these cannot panic
                     let prefab_area = prefab_list.next().unwrap();
@@ -254,11 +312,11 @@ fn load_map_impl(
                         )?;
                         continue;
                     }
-                    let mut old_area = None;
                     if !prefab_area.0.starts_with("/area/template_noop") {
                         let area = if let Some(area) = created_areas.get_mut(prefab_area.0) {
                             area
                         } else {
+                            zone!("area creation");
                             let area = call_global(
                                 "_bapi_create_or_get_area",
                                 &[ByondValue::new_str(prefab_area.0)?],
@@ -269,10 +327,11 @@ fn load_map_impl(
                         };
 
                         if !new_z {
-                            old_area =
-                                Some(call_global("_bapi_handle_area_contain", &[turf, *area])?)
+                            zone!("_bapi_handle_area_contain");
+                            call_global("_bapi_handle_area_contain", &[turf, *area])?;
                         }
-                        call_global("_bapi_add_turf_to_area", &[*area, turf])?;
+                        zone!("_bapi_add_turf_to_area");
+                        call_global_id(byond_string!("_bapi_add_turf_to_area"), &[*area, turf])?;
                     }
 
                     let prefab_turf = prefab_list.next().unwrap();
@@ -286,17 +345,14 @@ fn load_map_impl(
                         continue;
                     }
                     if !prefab_turf.0.starts_with("/turf/template_noop") {
+                        zone!("turf creation");
                         create_turf(
                             &mut parsed_map,
                             &turf,
                             prefab_turf,
                             place_on_top,
-                            no_changeturf,
+                            no_afterchange,
                         )?;
-                    } else if !no_changeturf {
-                        if let Some(old_area) = old_area {
-                            turf.call("on_change_area", &[old_area, turf.read_var("loc")?])?;
-                        }
                     }
 
                     // We reverse it again after doing the turf and area
@@ -311,7 +367,7 @@ fn load_map_impl(
                             )?;
                         }
                         // Movables are easy
-                        create_movable(&mut parsed_map, &turf, instance)?;
+                        create_movable(&mut parsed_map, &mut path_map, &turf, instance)?;
                     }
                 } else {
                     // Note: Cannot hard error or map will fail to finish loading
@@ -358,21 +414,33 @@ fn float_exceeds_lower_bounds(check: (usize, usize, usize), bounds: (f32, f32, f
     (check.0 as f32) < bounds.0 || (check.1 as f32) < bounds.1 || (check.2 as f32) < bounds.2
 }
 
-fn create_movable(
+fn create_movable<'s>(
     parsed_map: &mut ByondValue,
+    path_cache: &mut HashMap<&'s str, ByondValue>,
     turf: &ByondValue,
-    obj: &dmm_lite::prefabs::Prefab,
+    obj: &'s dmm_lite::prefabs::Prefab,
 ) -> eyre::Result<ByondValue> {
+    zone!("movable creation");
     let (path_text, vars) = obj;
+    let path = path_cache.entry(*path_text).or_insert_with(|| {
+        zone!("creating path string");
+        let text = ByondValue::new_str(*path_text).expect("Failed to allocate string");
+        zone!("text2path");
+        call_global("_bapi_helper_text2path", &[text]).expect("Failed to call text2path")
+    });
 
-    let vars_list = convert_vars_list_to_byondlist(parsed_map, vars)?;
+    if vars.is_some() {
+        let vars_list = convert_vars_list_to_byondlist(parsed_map, vars)?;
+        zone!("setting up preloader");
+        call_global("_bapi_setup_preloader", &[vars_list, *path])?;
+    }
 
-    // We shell out to BYOND to set up the preloader for us
-    call_global(
-        "_bapi_new_atom",
-        &[ByondValue::new_str(*path_text)?, *turf, vars_list],
-    )
-    .map_err(|e| eyre!("Failed to create atom: {e:#?}"))
+    zone!("byond_new");
+    let instance = ByondValue::builtin_new(*path, &[*turf])?;
+    zone!("apply preloader");
+    call_global("_bapi_apply_preloader", &[instance])?;
+
+    Ok(instance)
 }
 
 fn create_turf(
@@ -382,8 +450,10 @@ fn create_turf(
     place_on_top: bool,
     no_changeturf: bool,
 ) -> eyre::Result<ByondValue> {
+    zone!("create_turf");
     let (path_text, vars) = prefab_turf;
 
+    zone!("creating path string");
     let path_text = ByondValue::new_str(*path_text)?;
     let vars_list = convert_vars_list_to_byondlist(parsed_map, vars)?;
     let place_on_top = if place_on_top {
@@ -397,8 +467,9 @@ fn create_turf(
         ByondValue::new_num(0.)
     };
 
-    call_global(
-        "_bapi_create_turf",
+    zone!("_bapi_create_turf");
+    call_global_id(
+        byond_string!("_bapi_create_turf"),
         &[*turf, path_text, vars_list, place_on_top, no_changeturf],
     )
     .map_err(|e| eyre!("Failed to create turf: {e:#?}"))
@@ -408,6 +479,7 @@ fn convert_vars_list_to_byondlist(
     parsed_map: &mut ByondValue,
     vars: &Option<Vec<(&str, Literal)>>,
 ) -> eyre::Result<ByondValue> {
+    zone!("convert_vars_list_to_byondlist");
     if let Some(vars) = vars {
         let mut vars_list = ByondValue::new_list()?;
         for (key, literal) in vars {
@@ -426,6 +498,7 @@ fn convert_literal_to_byondvalue(
     key: &str,
     literal: &Literal,
 ) -> eyre::Result<ByondValue> {
+    zone!("convert_literal_to_byondvalue");
     Ok(match literal {
         Literal::Number(n) => ByondValue::new_num(*n),
         Literal::String(s) => ByondValue::new_str(*s)?,
@@ -443,6 +516,7 @@ fn convert_literal_to_byondvalue(
             ByondValue::new_str(*s)?
         }
         Literal::List(l) => {
+            zone!("convert_literal_to_byondvalue(list)");
             let mut list = ByondValue::new_list()?;
 
             for literal in l {
@@ -463,6 +537,7 @@ fn convert_literal_to_byondvalue(
             list
         }
         Literal::AssocList(map) => {
+            zone!("convert_literal_to_byondvalue(assoc list)");
             let mut list = ByondValue::new_list()?;
 
             for (list_key, lit) in map.iter() {

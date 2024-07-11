@@ -255,20 +255,28 @@
 		else
 			world.increase_max_y(y)
 	if(z > world.maxz)
-		world.increase_max_z(z)
+		while(world.maxz < z)
+			world.incrementMaxZ()
 
 /proc/_bapi_helper_get_world_bounds()
-	return list(world.maxx, world.maxy, world.maxz)
+	. = list(world.maxx, world.maxy, world.maxz)
 
 /proc/_bapi_helper_text2path(text)
-	return text2path(text)
+	. = text2path(text)
 
 /proc/_bapi_helper_text2file(text)
-	return file(text)
+	. = file(text)
 
 /proc/_bapi_create_atom(path, crds)
 	set waitfor = FALSE
 	. = new path (crds)
+
+/proc/_bapi_setup_preloader(list/attributes, path)
+	world.preloader_setup(attributes, path)
+
+/proc/_bapi_apply_preloader(atom/A)
+	if(use_preloader)
+		world.preloader_load(A)
 
 /proc/_bapi_new_atom(text_path, turf/crds, list/attributes)
 	var/path = text2path(text_path)
@@ -293,11 +301,12 @@
 
 /proc/_bapi_handle_area_contain(turf/T, area/A)
 	var/area/old_area = T.loc
+	if(old_area == A)
+		return // no changing areas that already contain this turf, it'll confuse them
 	LISTASSERTLEN(old_area.turfs_to_uncontain_by_zlevel, T.z, list())
 	LISTASSERTLEN(A.turfs_by_zlevel, T.z, list())
 	old_area.turfs_to_uncontain_by_zlevel[T.z] += T
 	A.turfs_by_zlevel[T.z] += T
-	return old_area
 
 /proc/_bapi_create_turf(turf/crds, text_path, list/attributes, place_on_top, no_changeturf)
 	var/path = text2path(text_path)
@@ -317,6 +326,12 @@
 
 /proc/_bapi_add_turf_to_area(area/A, turf/T)
 	A.contents.Add(T)
+
+/proc/_bapi_helper_get_world_type_turf()
+	return "[world.turf]"
+
+/proc/_bapi_helper_get_world_type_area()
+	return "[world.area]"
 
 // #undef MAP_DMM
 // #undef MAP_TGM
