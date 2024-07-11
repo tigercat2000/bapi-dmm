@@ -19,6 +19,7 @@ thread_local! {
 }
 
 pub mod _compat;
+pub mod helpers;
 pub mod load;
 pub mod parse;
 
