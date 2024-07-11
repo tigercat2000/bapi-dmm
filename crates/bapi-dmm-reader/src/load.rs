@@ -192,7 +192,8 @@ fn load_map_impl(
     for (bottom_left, block) in blocks {
         // We have to reverse and THEN enumerate this to translate from
         // origin TOP left to origin BOTTOM left
-        for (map_y_offset, line) in block.iter().rev().enumerate() {
+        // and then reverse it again to do the correct iteration order
+        for (map_y_offset, line) in block.iter().rev().enumerate().rev() {
             let turfs = separate_turfs(line, key_len as usize);
             for (map_x_offset, prefab_key) in turfs.enumerate() {
                 let relative_coord = (
