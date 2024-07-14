@@ -1,6 +1,6 @@
 use byondapi::prelude::*;
 use eyre::eyre;
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 use crate::{_compat::setup_panic_handler, ouroboros_impl_map::MapTryBuilder, PARSED_MAPS};
 
@@ -30,6 +30,7 @@ pub fn _bapidmm_parse_map_blocking(dmm_file: ByondValue, mut map_datum: ByondVal
     let map = MapTryBuilder {
         map_data: string,
         parsed_data_builder: |map_data: &String| dmm_lite::parse_map_multithreaded(map_data),
+        command_buffers_builder: |_, _| Ok(HashMap::new()),
     }
     .try_build()
     .map_err(|e| eyre!("Error parsing {dmm_file_str:#?}: {e:#?}"))?;

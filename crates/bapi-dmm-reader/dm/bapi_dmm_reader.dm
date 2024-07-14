@@ -180,8 +180,9 @@
 )
 	PRIVATE_PROC(TRUE)
 	SSatoms.map_loader_begin(REF(src))
+
 	// `loading` var handled by bapidmm
-	var/successful =  _bapidmm_load_map(
+	var/resume_key = _bapidmm_load_map_buffered(
 		src,
 		x_offset,
 		y_offset,
@@ -197,6 +198,17 @@
 		place_on_top,
 		new_z
 	)
+
+	if(!resume_key)
+		SSatoms.map_loader_stop(REF(src))
+		CRASH("Failed to generate command buffer, check rust_log.txt and other runtimes")
+
+	var/work_remaining = FALSE
+	do
+		work_remaining = _bapidmm_work_commandbuffer(src, resume_key)
+		stoplag()
+	while(work_remaining)
+
 	SSatoms.map_loader_stop(REF(src))
 
 	if(new_z)
@@ -214,7 +226,7 @@
 	if(expanded_x || expanded_y)
 		SEND_GLOBAL_SIGNAL(COMSIG_GLOB_EXPANDED_WORLD_BOUNDS, expanded_x, expanded_y)
 
-	return successful
+	return TRUE
 
 /datum/bapi_parsed_map/proc/has_warnings()
 	if(length(loaded_warnings))

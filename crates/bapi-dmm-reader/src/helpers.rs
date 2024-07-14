@@ -97,6 +97,7 @@ pub fn _bapi_create_turf(
 }
 
 pub fn _bapi_helper_tick_check() -> Result<bool> {
+    zone!("_bapi_helper_tick_check");
     let result = call_global("_bapi_helper_tick_check", &[])?;
     if result.is_true() {
         Ok(true)

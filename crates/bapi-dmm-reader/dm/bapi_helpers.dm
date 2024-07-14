@@ -93,3 +93,8 @@
 
 /proc/_bapi_helper_get_world_type_area()
 	return "[world.area]"
+
+/// Implement this to have bapi-dmm sleep occasionally
+/// by returning true
+/proc/_bapi_helper_tick_check()
+	return TICK_CHECK

@@ -179,3 +179,36 @@ var/global/datum/controller/subsystem/mapping/SSmapping = new()
 
 //If you modify this function, ensure it works correctly with lateloaded map templates.
 /turf/proc/AfterChange(flags, oldType) //called after a turf has been replaced in ChangeTurf()
+
+///Increases delay as the server gets more overloaded, as sleeps aren't cheap and sleeping only to wake up and sleep again is wasteful
+#define DELTA_CALC max(((max(TICK_USAGE, world.cpu) / 100) * 1), 1)
+
+#define CEILING(x, y) ( -round(-(x) / (y)) * (y) )
+#define DS2TICKS(DS) ((DS)/world.tick_lag)
+
+
+#define MAPTICK_LAST_INTERNAL_TICK_USAGE (world.map_cpu)
+#define TICK_BYOND_RESERVE 2
+/// for general usage of tick_usage
+#define TICK_USAGE world.tick_usage
+#define TICK_LIMIT_RUNNING (100 - TICK_BYOND_RESERVE - MAPTICK_LAST_INTERNAL_TICK_USAGE)
+/// Returns true if tick_usage is above the limit
+#define TICK_CHECK ( TICK_USAGE > TICK_LIMIT_RUNNING )
+/// runs stoplag if tick_usage is above the limit
+#define CHECK_TICK ( TICK_CHECK ? stoplag() : 0 )
+
+#define MAPLOADING_CHECK_TICK \
+	if(TICK_CHECK) { \
+		if(loading) { \
+			SSatoms.map_loader_stop(REF(src)); \
+			stoplag(); \
+			SSatoms.map_loader_begin(REF(src)); \
+		} else { \
+			stoplag(); \
+		} \
+	}
+
+///returns the number of ticks slept
+/proc/stoplag(initial_delay)
+	// do nothing
+	return

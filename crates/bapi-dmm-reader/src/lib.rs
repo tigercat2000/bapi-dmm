@@ -1,7 +1,14 @@
 use byondapi::prelude::*;
-use std::cell::RefCell;
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::_compat::setup_panic_handler;
+
+type ResumeKey = usize;
+
+pub mod _compat;
+pub mod helpers;
+pub mod load_buffer;
+pub mod parse;
 
 #[ouroboros::self_referencing]
 /// This self-referencing structure holds a loaded map file in memory plus many
@@ -11,18 +18,15 @@ struct Map {
     #[borrows(map_data)]
     #[covariant]
     parsed_data: (dmm_lite::MapInfo, dmm_lite::MapData<'this>),
+    #[borrows(map_data, parsed_data)]
+    #[covariant]
+    command_buffers: HashMap<ResumeKey, load_buffer::CommandBuffer<'this>>,
 }
 
 thread_local! {
     /// Note on thread_locals: We only ever access this from the main BYOND thread, which is also where our DLL is loaded
     pub static PARSED_MAPS: RefCell<Vec<Map>> = const { RefCell::new(vec![]) };
 }
-
-pub mod _compat;
-pub mod helpers;
-pub mod load;
-pub mod load_buffer;
-pub mod parse;
 
 #[byondapi::bind]
 /// This function empties out the cached map data

@@ -16,7 +16,7 @@ ouroboros = "0.18.4"
 tracy_full = "1.3.0"
 
 [features]
-debug_enable = ["tracy_full/enable"]
+enable_tracy = ["tracy_full/enable"]
 
 [dev-dependencies]
 tempfile = "3.10.1"
