@@ -3,6 +3,7 @@ use winnow::{combinator::opt, stream::Stream, PResult, Parser};
 pub mod block;
 pub mod prefabs;
 
+#[derive(Debug)]
 pub struct MapInfo {
     pub is_tgm: bool,
 }

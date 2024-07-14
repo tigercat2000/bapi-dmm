@@ -14,6 +14,7 @@ use eyre::eyre;
 use tracy_full::{frame, zone};
 
 /// This type is used to wrap a ByondValue in IncRef/DecRef
+#[derive(Debug)]
 pub struct SmartByondValue {
     _internal: ByondValue,
 }
@@ -39,6 +40,7 @@ impl SmartByondValue {
 
 pub type SharedByondValue = Rc<SmartByondValue>;
 
+#[derive(Debug)]
 pub enum Command<'s> {
     CreateArea {
         loc: SharedByondValue,
@@ -57,7 +59,7 @@ pub enum Command<'s> {
     },
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CommandBuffer<'s> {
     pub created_areas: HashMap<&'s str, SharedByondValue>,
     pub known_types: HashMap<&'s str, SharedByondValue>,
@@ -88,83 +90,81 @@ pub fn _bapidmm_work_commandbuffer(parsed_map: ByondValue, resume_key: ByondValu
     let resume_key = resume_key.get_number()? as usize;
 
     zone!("borrow parsed_map");
-    PARSED_MAPS.with_borrow_mut(|maps| {
-        let internal_data = maps
-            .get_mut(id)
-            .ok_or_else(|| eyre!("Bad internal index {id:#?}"))?;
+    let internal_data = unsafe { PARSED_MAPS.get_mut() }
+        .get_mut(id)
+        .ok_or_else(|| eyre!("Bad internal index {id:#?}"))?;
 
-        zone!("borrow internal_data");
-        let mut minimum_pause_counter = 0;
-        internal_data.with_mut(|all_fields| {
-            let command_buffers_map = all_fields.command_buffers;
-            let (metadata, (prefabs, _blocks)) = all_fields.parsed_data;
+    zone!("borrow internal_data");
+    let mut minimum_pause_counter = 0;
+    internal_data.with_mut(|all_fields| {
+        let command_buffers_map = all_fields.command_buffers;
+        let (metadata, (prefabs, _blocks)) = all_fields.parsed_data;
 
-            zone!("lookup our buffer");
-            if let Some(our_command_buffer) = command_buffers_map.get_mut(&resume_key) {
-                zone!("command loop");
-                while let Some(command) = our_command_buffer.commands.pop() {
-                    match command {
-                        Command::CreateArea { loc, prefab, new_z } => {
-                            zone!("Commmand::CreateArea");
+        zone!("lookup our buffer");
+        if let Some(our_command_buffer) = command_buffers_map.get_mut(&resume_key) {
+            zone!("command loop");
+            while let Some(command) = our_command_buffer.commands.pop() {
+                match command {
+                    Command::CreateArea { loc, prefab, new_z } => {
+                        zone!("Commmand::CreateArea");
 
-                            let area = if let Some(area) =
-                                our_command_buffer.created_areas.get_mut(prefab.0)
-                            {
-                                area
-                            } else {
-                                zone!("new area creation");
-                                let area = _bapi_create_or_get_area(prefab.0)?;
-                                let area = Rc::new(SmartByondValue::from(area));
-                                our_command_buffer.created_areas.insert(prefab.0, area);
-                                // This can't possibly fail, I hope
-                                our_command_buffer.created_areas.get_mut(prefab.0).unwrap()
-                            };
+                        let area = if let Some(area) =
+                            our_command_buffer.created_areas.get_mut(prefab.0)
+                        {
+                            area
+                        } else {
+                            zone!("new area creation");
+                            let area = _bapi_create_or_get_area(prefab.0)?;
+                            let area = Rc::new(SmartByondValue::from(area));
+                            our_command_buffer.created_areas.insert(prefab.0, area);
+                            // This can't possibly fail, I hope
+                            our_command_buffer.created_areas.get_mut(prefab.0).unwrap()
+                        };
 
-                            if !new_z {
-                                _bapi_handle_area_contain(loc.get_temp_ref(), area.get_temp_ref())?;
-                            }
-                            _bapi_add_turf_to_area(area.get_temp_ref(), loc.get_temp_ref())?;
+                        if !new_z {
+                            _bapi_handle_area_contain(loc.get_temp_ref(), area.get_temp_ref())?;
                         }
-                        Command::CreateTurf {
+                        _bapi_add_turf_to_area(area.get_temp_ref(), loc.get_temp_ref())?;
+                    }
+                    Command::CreateTurf {
+                        loc,
+                        prefab,
+                        no_changeturf,
+                        place_on_top,
+                    } => {
+                        zone!("Commmand::CreateTurf");
+                        create_turf(&mut parsed_map, loc, prefab, place_on_top, no_changeturf)?;
+                    }
+                    Command::CreateAtom { loc, prefab } => {
+                        zone!("Commmand::CreateAtom");
+                        create_movable(
+                            &mut parsed_map,
+                            &mut our_command_buffer.known_types,
                             loc,
                             prefab,
-                            no_changeturf,
-                            place_on_top,
-                        } => {
-                            zone!("Commmand::CreateTurf");
-                            create_turf(&mut parsed_map, loc, prefab, place_on_top, no_changeturf)?;
-                        }
-                        Command::CreateAtom { loc, prefab } => {
-                            zone!("Commmand::CreateAtom");
-                            create_movable(
-                                &mut parsed_map,
-                                &mut our_command_buffer.known_types,
-                                loc,
-                                prefab,
-                            )?;
-                        }
-                    }
-                    minimum_pause_counter += 1;
-
-                    // Yield
-                    if minimum_pause_counter % MIN_PAUSE == 0 && _bapi_helper_tick_check()? {
-                        minimum_pause_counter = 0;
-                        return Ok(ByondValue::new_num(1.));
+                        )?;
                     }
                 }
+                minimum_pause_counter += 1;
 
-                // Clean up after ourselves
-                if our_command_buffer.commands.is_empty() {
-                    zone!("cleanup");
-                    command_buffers_map.remove(&resume_key);
+                // Yield
+                if minimum_pause_counter % MIN_PAUSE == 0 && _bapi_helper_tick_check()? {
+                    minimum_pause_counter = 0;
+                    return Ok(ByondValue::new_num(1.));
                 }
             }
 
-            zone!("set_loading false and return 0");
-            parsed_map.set_loading(false)?;
+            // Clean up after ourselves
+            if our_command_buffer.commands.is_empty() {
+                zone!("cleanup");
+                command_buffers_map.remove(&resume_key);
+            }
+        }
 
-            Ok(ByondValue::new_num(0.))
-        })
+        zone!("set_loading false and return 0");
+        parsed_map.set_loading(false)?;
+
+        Ok(ByondValue::new_num(0.))
     })
 }
 
@@ -202,36 +202,37 @@ pub fn _bapidmm_load_map_buffered(
     let place_on_top = place_on_top.get_bool()?;
     let new_z = new_z.get_bool()?;
 
-    PARSED_MAPS.with_borrow_mut(|r| {
-        let internal_data = r
-            .get_mut(id as usize)
-            .ok_or_else(|| eyre!("Bad internal index {id:#?}"))?;
+    let internal_data = unsafe { PARSED_MAPS.get_mut() }
+        .get_mut(id as usize)
+        .ok_or_else(|| eyre!("Bad internal index {id:#?}"))?;
 
-        parsed_map.set_loading(true)?;
+    parsed_map.set_loading(true)?;
 
-        // Load map
-        let ret = match generate_command_buffer(
-            &mut parsed_map,
-            internal_data,
-            (x_offset, y_offset, z_offset),
-            crop_map,
-            no_changeturf,
-            (x_lower, y_lower, z_lower),
-            (x_upper, y_upper, z_upper),
-            place_on_top,
-            new_z,
-        ) {
-            Ok(val) => Ok(val),
-            Err(e) => {
-                parsed_map.add_warning(format!("Loading failed due to error: {e:#}"))?;
-                Err(e)
-            }
-        };
+    // Load map
+    let ret = match generate_command_buffer(
+        &mut parsed_map,
+        internal_data,
+        (x_offset, y_offset, z_offset),
+        crop_map,
+        no_changeturf,
+        (x_lower, y_lower, z_lower),
+        (x_upper, y_upper, z_upper),
+        place_on_top,
+        new_z,
+    ) {
+        Ok(val) => Ok(val),
+        Err(e) => {
+            parsed_map.add_warning(format!("Loading failed due to error: {e:#}"))?;
+            Err(e)
+        }
+    };
 
-        frame!();
-        ret
-    })
+    frame!();
+    ret
 }
+
+/// if you generate usize::MAX command buffers in one round I can't help you I'm sorry
+static mut COMMAND_BUFFER_ID: usize = 0;
 
 fn generate_command_buffer(
     parsed_map: &mut ParsedMapTranslationLayer,
@@ -245,12 +246,14 @@ fn generate_command_buffer(
     place_on_top: bool,
     new_z: bool,
 ) -> eyre::Result<ByondValue> {
+    // Safety: only ever called on main thread by BYOND
+    unsafe { COMMAND_BUFFER_ID += 1 };
     zone!("generate_command_buffer");
 
     internal_data.with_mut(|fields| {
         let (metadata, (prefabs, blocks)) = fields.parsed_data;
         let command_buffers = fields.command_buffers;
-        let resume_key = command_buffers.len() + 1;
+        let resume_key = unsafe { COMMAND_BUFFER_ID };
 
         let mut our_command_buffer = CommandBuffer::default();
 

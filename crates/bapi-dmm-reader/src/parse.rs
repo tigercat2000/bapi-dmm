@@ -48,10 +48,11 @@ pub fn _bapidmm_parse_map_blocking(dmm_file: ByondValue, mut map_datum: ByondVal
 
     find_metadata(&mut map_datum, map.borrow_parsed_data())?;
 
-    let index = PARSED_MAPS.with_borrow_mut(|f| {
-        f.push(map);
-        f.len() - 1
-    });
+    let index = {
+        let mut maps_list = unsafe { PARSED_MAPS.borrow_mut() };
+        maps_list.push(map);
+        maps_list.len() - 1
+    };
 
     map_datum.write_var("_internal_index", &ByondValue::new_num(index as f32))?;
 

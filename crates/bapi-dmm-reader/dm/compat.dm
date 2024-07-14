@@ -212,3 +212,11 @@ var/global/datum/controller/subsystem/mapping/SSmapping = new()
 /proc/stoplag(initial_delay)
 	// do nothing
 	return
+
+/world/Reboot()
+	_bapidmm_clear_map_data()
+	. = ..()
+
+/world/Del()
+	_bapidmm_clear_map_data()
+	. = ..()
