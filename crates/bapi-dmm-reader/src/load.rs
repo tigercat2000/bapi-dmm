@@ -30,9 +30,9 @@ pub fn _bapidmm_load_map(
     place_on_top: ByondValue,
     new_z: ByondValue,
 ) {
-    let mut parsed_map = ParsedMapTranslationLayer { parsed_map };
-
     setup_panic_handler();
+
+    let mut parsed_map = ParsedMapTranslationLayer { parsed_map };
     let id = parsed_map.get_internal_index()?;
     let x_offset = x_offset.get_number()?;
     let y_offset = y_offset.get_number()?;

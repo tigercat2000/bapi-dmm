@@ -21,6 +21,7 @@ thread_local! {
 pub mod _compat;
 pub mod helpers;
 pub mod load;
+pub mod load_buffer;
 pub mod parse;
 
 #[byondapi::bind]

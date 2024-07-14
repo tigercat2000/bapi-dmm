@@ -96,6 +96,15 @@ pub fn _bapi_create_turf(
     .context("Failed to call text2file")
 }
 
+pub fn _bapi_helper_tick_check() -> Result<bool> {
+    let result = call_global("_bapi_helper_tick_check", &[])?;
+    if result.is_true() {
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 /// Used to wrap calls and variable access on our /datum/bapi_parsed_map datum
 pub struct ParsedMapTranslationLayer {
     pub parsed_map: ByondValue,
