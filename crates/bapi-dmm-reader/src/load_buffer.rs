@@ -59,10 +59,59 @@ pub enum Command<'s> {
     },
 }
 
+/// This thing allows us to cache turfs ahead of time in a safe way,
+/// respecting when turf references become invalidated (world.max[x|y|z] changes)
+#[derive(Default, Debug)]
+pub struct CachedTurfs {
+    /// Invalidates cache if this changes
+    pub world_bounds: (usize, usize, usize),
+    pub cached_turfs: HashMap<(usize, usize, usize), SharedByondValue>,
+}
+
+impl CachedTurfs {
+    pub fn check_invalidate(&mut self) -> eyre::Result<()> {
+        let world_bounds = _bapi_helper_get_world_bounds()?;
+
+        if world_bounds != self.world_bounds {
+            self.cached_turfs.clear();
+            // Allow ourselves to rebuild the cache if we only invalidate once
+            self.world_bounds = world_bounds;
+        }
+
+        Ok(())
+    }
+
+    /// Caches a turf
+    pub fn cache(&mut self, coord: (usize, usize, usize)) -> eyre::Result<()> {
+        if let std::collections::hash_map::Entry::Vacant(e) = self.cached_turfs.entry(coord) {
+            let turf = lookup_turf_by_coord_tuple(coord)?;
+            e.insert(Rc::new(SmartByondValue::from(turf)));
+        }
+
+        Ok(())
+    }
+
+    /// Resolves the turf, either by looking it up internally, or failing that, looking it up through byondapi
+    /// Will cache byondapi results
+    pub fn resolve_coord(&mut self, coord: (usize, usize, usize)) -> eyre::Result<ByondValue> {
+        if let Some(turf) = self.cached_turfs.get(&coord) {
+            Ok(turf.get_temp_ref())
+        } else {
+            let turf = lookup_turf_by_coord_tuple(coord)?;
+
+            self.cached_turfs
+                .insert(coord, Rc::new(SmartByondValue::from(turf)));
+
+            Ok(turf)
+        }
+    }
+}
+
 #[derive(Default, Debug)]
 pub struct CommandBuffer<'s> {
     pub created_areas: HashMap<&'s str, SharedByondValue>,
     pub known_types: HashMap<&'s str, SharedByondValue>,
+    pub cached_turfs: CachedTurfs,
     pub commands: Vec<Command<'s>>,
 }
 
@@ -103,6 +152,9 @@ pub fn _bapidmm_work_commandbuffer(parsed_map: ByondValue, resume_key: ByondValu
         zone!("lookup our buffer");
         if let Some(our_command_buffer) = command_buffers_map.get_mut(&resume_key) {
             zone!("command loop");
+            let cached_turfs = &mut our_command_buffer.cached_turfs;
+            cached_turfs.check_invalidate()?;
+
             while let Some(command) = our_command_buffer.commands.pop() {
                 match command {
                     Command::CreateArea { loc, prefab, new_z } => {
@@ -122,7 +174,13 @@ pub fn _bapidmm_work_commandbuffer(parsed_map: ByondValue, resume_key: ByondValu
                         };
 
                         let area_ref = area.get_temp_ref();
-                        let turf_ref = lookup_turf_by_coord_tuple(loc)?;
+                        let turf_ref = cached_turfs.resolve_coord(loc)?;
+                        if turf_ref.is_null() {
+                            parsed_map.add_warning(format!(
+                                "Unable to create atom at {loc:#?} because coord was null"
+                            ))?;
+                            continue;
+                        }
 
                         if !new_z {
                             _bapi_handle_area_contain(turf_ref, area_ref)?;
@@ -136,7 +194,13 @@ pub fn _bapidmm_work_commandbuffer(parsed_map: ByondValue, resume_key: ByondValu
                         place_on_top,
                     } => {
                         zone!("Commmand::CreateTurf");
-                        let turf_ref = lookup_turf_by_coord_tuple(loc)?;
+                        let turf_ref = cached_turfs.resolve_coord(loc)?;
+                        if turf_ref.is_null() {
+                            parsed_map.add_warning(format!(
+                                "Unable to create atom at {loc:#?} because coord was null"
+                            ))?;
+                            continue;
+                        }
 
                         create_turf(
                             &mut parsed_map,
@@ -148,7 +212,13 @@ pub fn _bapidmm_work_commandbuffer(parsed_map: ByondValue, resume_key: ByondValu
                     }
                     Command::CreateAtom { loc, prefab } => {
                         zone!("Commmand::CreateAtom");
-                        let turf_ref = lookup_turf_by_coord_tuple(loc)?;
+                        let turf_ref = cached_turfs.resolve_coord(loc)?;
+                        if turf_ref.is_null() {
+                            parsed_map.add_warning(format!(
+                                "Unable to create atom at {loc:#?} because coord was null"
+                            ))?;
+                            continue;
+                        }
                         create_movable(
                             &mut parsed_map,
                             &mut our_command_buffer.known_types,
@@ -272,10 +342,18 @@ fn generate_command_buffer(
         let key_len = parsed_map.get_key_len()?;
         let parsed_bounds = parsed_map.get_parsed_bounds()?;
         let world_bounds = _bapi_helper_get_world_bounds()?;
+        our_command_buffer.cached_turfs.world_bounds = world_bounds;
 
         // Expand map if necessary
-        if exceeds_upper_bounds((parsed_bounds.3, parsed_bounds.4, parsed_bounds.5), world_bounds) && !crop_map {
-            parsed_map.expand_map((parsed_bounds.3, parsed_bounds.4, parsed_bounds.5), new_z, offset.2)?;
+        if !crop_map {
+            let max_extent_offset = (
+                offset.0 as usize + parsed_bounds.3 - 1,
+                offset.1 as usize + parsed_bounds.4 - 1,
+                offset.2 as usize + parsed_bounds.5 - 1);
+            if exceeds_upper_bounds(max_extent_offset, world_bounds) && !crop_map {
+                parsed_map.expand_map(max_extent_offset, new_z, offset.2)?;
+                our_command_buffer.cached_turfs.world_bounds = max_extent_offset;
+            }
         }
 
         let world_turf = _bapi_helper_get_world_type_turf()?;
@@ -378,6 +456,8 @@ fn generate_command_buffer(
                         bounds.3 = bounds.3.max(exact_coord.0);
                         bounds.4 = bounds.4.max(exact_coord.1);
                         bounds.5 = bounds.5.max(exact_coord.2);
+
+                        our_command_buffer.cached_turfs.cache(exact_coord)?;
 
                         let mut prefab_list = prefab.iter().rev();
                         // Above check ensures that these cannot panic
