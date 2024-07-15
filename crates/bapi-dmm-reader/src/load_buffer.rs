@@ -10,7 +10,7 @@ use byondapi::{
     prelude::*,
 };
 use dmm_lite::prefabs::{Literal, Prefab};
-use eyre::eyre;
+use eyre::{eyre, Context};
 use tracy_full::{frame, zone};
 
 /// This type is used to wrap a ByondValue in IncRef/DecRef
@@ -43,18 +43,18 @@ pub type SharedByondValue = Rc<SmartByondValue>;
 #[derive(Debug)]
 pub enum Command<'s> {
     CreateArea {
-        loc: SharedByondValue,
+        loc: (usize, usize, usize),
         prefab: &'s Prefab<'s>,
         new_z: bool,
     },
     CreateTurf {
-        loc: SharedByondValue,
+        loc: (usize, usize, usize),
         prefab: &'s Prefab<'s>,
         no_changeturf: bool,
         place_on_top: bool,
     },
     CreateAtom {
-        loc: SharedByondValue,
+        loc: (usize, usize, usize),
         prefab: &'s Prefab<'s>,
     },
 }
@@ -121,10 +121,13 @@ pub fn _bapidmm_work_commandbuffer(parsed_map: ByondValue, resume_key: ByondValu
                             our_command_buffer.created_areas.get_mut(prefab.0).unwrap()
                         };
 
+                        let area_ref = area.get_temp_ref();
+                        let turf_ref = lookup_turf_by_coord_tuple(loc)?;
+
                         if !new_z {
-                            _bapi_handle_area_contain(loc.get_temp_ref(), area.get_temp_ref())?;
+                            _bapi_handle_area_contain(turf_ref, area_ref)?;
                         }
-                        _bapi_add_turf_to_area(area.get_temp_ref(), loc.get_temp_ref())?;
+                        _bapi_add_turf_to_area(area_ref, turf_ref)?;
                     }
                     Command::CreateTurf {
                         loc,
@@ -133,14 +136,23 @@ pub fn _bapidmm_work_commandbuffer(parsed_map: ByondValue, resume_key: ByondValu
                         place_on_top,
                     } => {
                         zone!("Commmand::CreateTurf");
-                        create_turf(&mut parsed_map, loc, prefab, place_on_top, no_changeturf)?;
+                        let turf_ref = lookup_turf_by_coord_tuple(loc)?;
+
+                        create_turf(
+                            &mut parsed_map,
+                            turf_ref,
+                            prefab,
+                            place_on_top,
+                            no_changeturf,
+                        )?;
                     }
                     Command::CreateAtom { loc, prefab } => {
                         zone!("Commmand::CreateAtom");
+                        let turf_ref = lookup_turf_by_coord_tuple(loc)?;
                         create_movable(
                             &mut parsed_map,
                             &mut our_command_buffer.known_types,
-                            loc,
+                            turf_ref,
                             prefab,
                         )?;
                     }
@@ -261,6 +273,11 @@ fn generate_command_buffer(
         let parsed_bounds = parsed_map.get_parsed_bounds()?;
         let world_bounds = _bapi_helper_get_world_bounds()?;
 
+        // Expand map if necessary
+        if exceeds_upper_bounds((parsed_bounds.3, parsed_bounds.4, parsed_bounds.5), world_bounds) && !crop_map {
+            parsed_map.expand_map((parsed_bounds.3, parsed_bounds.4, parsed_bounds.5), new_z, offset.2)?;
+        }
+
         let world_turf = _bapi_helper_get_world_type_turf()?;
         let world_area = _bapi_helper_get_world_type_area()?;
 
@@ -335,39 +352,10 @@ fn generate_command_buffer(
                         continue;
                     }
 
-                    // Expand map if necessary
-                    if exceeds_upper_bounds(exact_coord, world_bounds) {
-                        if crop_map {
-                            continue;
-                        } else {
-                            parsed_map.expand_map(exact_coord, new_z, offset.2)?;
-                        }
-                    }
-
-                    // Locate the turf at the xyz
-                    let turf = byond_locatexyz(ByondXYZ::with_coords((
-                        exact_coord.0 as i16,
-                        exact_coord.1 as i16,
-                        exact_coord.2 as i16,
-                    )))?;
-
-                    if turf.is_null() {
-                        // This should be unreachable
-                        // We check
-                        // - coord isn't < (1, 1, 1)
-                        // - coord isn't > world_bounds
-                        // And either continue and skip the rest of this
-                        // Or we expand the world to fit.
-                        // Both of which should mean that our locate call never fails... but just to be safe, we never want to spawn stuff in nullspace.
-                        // Note: WE CANNOT ERROR HERE.
-                        // If we error here, the map will have only partially loaded.
-                        parsed_map.add_warning(format!(
-                            "Failed to locate turf at: {exact_coord:#?}, skipping"
-                        ))?;
+                    // Avoid generating OOB commands
+                    if exceeds_upper_bounds(exact_coord, world_bounds) && crop_map {
                         continue;
                     }
-
-                    let turf = Rc::new(SmartByondValue::from(turf));
 
                     if Some(prefab_key) == space_key && no_afterchange {
                         continue;
@@ -402,7 +390,7 @@ fn generate_command_buffer(
                         }
                         if !prefab_area.0.starts_with("/area/template_noop") {
                             zone!("generating CreateArea");
-                            our_command_buffer.commands.push(Command::CreateArea { loc: turf.clone(), prefab: prefab_area, new_z });
+                            our_command_buffer.commands.push(Command::CreateArea { loc: exact_coord, prefab: prefab_area, new_z });
                         }
 
                         let prefab_turf = prefab_list.next().unwrap();
@@ -414,7 +402,7 @@ fn generate_command_buffer(
                         }
                         if !prefab_turf.0.starts_with("/turf/template_noop") {
                             zone!("generating CreateTurf");
-                            our_command_buffer.commands.push(Command::CreateTurf { loc: turf.clone(), prefab: prefab_turf, no_changeturf: no_afterchange, place_on_top  })
+                            our_command_buffer.commands.push(Command::CreateTurf { loc: exact_coord, prefab: prefab_turf, no_changeturf: no_afterchange, place_on_top  })
                         }
 
                         // We reverse it again after doing the turf and area
@@ -428,7 +416,7 @@ fn generate_command_buffer(
                             }
                             zone!("generating CreateAtom");
                             // Movables are easy
-                            our_command_buffer.commands.push(Command::CreateAtom { loc: turf.clone(), prefab: instance });
+                            our_command_buffer.commands.push(Command::CreateAtom { loc: exact_coord, prefab: instance });
                         }
                     } else {
                         // Note: Cannot hard error or map will fail to finish loading
@@ -440,6 +428,7 @@ fn generate_command_buffer(
         }
 
         parsed_map.set_bounds(bounds)?;
+
         command_buffers.insert(resume_key, our_command_buffer);
 
         Ok(ByondValue::new_num(resume_key as f32))
@@ -448,7 +437,7 @@ fn generate_command_buffer(
 
 fn create_turf(
     parsed_map: &mut ParsedMapTranslationLayer,
-    turf: SharedByondValue,
+    turf: ByondValue,
     prefab_turf: &dmm_lite::prefabs::Prefab,
     place_on_top: bool,
     no_changeturf: bool,
@@ -459,19 +448,13 @@ fn create_turf(
     zone!("creating path string");
     let vars_list = convert_vars_list_to_byondlist(parsed_map, vars)?;
 
-    _bapi_create_turf(
-        turf.get_temp_ref(),
-        path_text,
-        vars_list,
-        place_on_top,
-        no_changeturf,
-    )
+    _bapi_create_turf(turf, path_text, vars_list, place_on_top, no_changeturf)
 }
 
 fn create_movable<'s>(
     parsed_map: &mut ParsedMapTranslationLayer,
     path_cache: &mut HashMap<&'s str, SharedByondValue>,
-    turf: SharedByondValue,
+    turf: ByondValue,
     obj: &'s dmm_lite::prefabs::Prefab,
 ) -> eyre::Result<ByondValue> {
     zone!("movable creation");
@@ -491,7 +474,7 @@ fn create_movable<'s>(
     }
 
     zone!("byond_new");
-    let instance = ByondValue::builtin_new(path.get_temp_ref(), &[turf.get_temp_ref()])?;
+    let instance = ByondValue::builtin_new(path.get_temp_ref(), &[turf])?;
 
     _bapi_apply_preloader(instance)?;
 
@@ -607,4 +590,15 @@ fn convert_literal_to_byondvalue(
             list
         }
     })
+}
+
+fn convert_coord_tuple_to_byondxyz(coord: (usize, usize, usize)) -> ByondXYZ {
+    zone!("convert_coord_tuple_to_byondxyz");
+    ByondXYZ::with_coords((coord.0 as i16, coord.1 as i16, coord.2 as i16))
+}
+
+fn lookup_turf_by_coord_tuple(coord: (usize, usize, usize)) -> eyre::Result<ByondValue> {
+    zone!("lookup_turf_by_coord_tuple");
+    let byondxyz = convert_coord_tuple_to_byondxyz(coord);
+    byond_locatexyz(byondxyz).context(format!("Failed to get turf at {byondxyz:#?}"))
 }

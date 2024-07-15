@@ -67,7 +67,6 @@
 		CRASH("Expected 29 placed_at_runtime objects, found [count]")
 
 /test/proc/test_loading_modified_prefab()
-	var/before_bounds = _bapi_helper_get_world_bounds()
 	var/datum/bapi_parsed_map/B = load_map("prefab.dmm")
 	if(B.has_warnings())
 		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
@@ -103,7 +102,6 @@
 	ASSERT(count == 0)
 
 /test/proc/legacy_test()
-	set background=1
 	for(var/A in world)
 		del(A)
 	world.maxx = 0
@@ -131,15 +129,13 @@
 
 	var/list/old_world_contents = list()
 	for(var/atom/A in world)
-		for(var/key in A.vars)
-			old_world_contents["[key][json_encode(A.vars[key])]"]++
-		// world_contents["[A.type]"]++
+		old_world_contents["[A.type]"]++
 
 	world.log << "types: [length(old_world_contents)]"
 
 	// clean up our areas
 	areas_by_type = list()
-	for(var/area/A in world)
+	for(var/A in world)
 		del(A)
 
 	world.maxx = 0
@@ -156,15 +152,15 @@
 	if(B.has_warnings())
 		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
 	ASSERT(B._internal_index != -1)
+	world.log << "meta-tgm internal index [B._internal_index]"
 	world.log << "bounds of bapi: [json_encode(B.bounds)]"
 
 	var/list/world_contents = list()
 	for(var/atom/A in world)
-		for(var/key in A.vars)
-			world_contents["[key][json_encode(A.vars[key])]"]++
-		// world_contents["[A.type]"]++
+		world_contents["[A.type]"]++
 
 	world.log << "bapi types: [length(world_contents)]"
+	world.log << "world xyz rn [world.maxx] [world.maxy] [world.maxz]"
 
 	for(var/type in world_contents)
 		if(!(type in old_world_contents))

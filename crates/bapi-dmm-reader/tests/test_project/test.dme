@@ -39,4 +39,5 @@
 		world.log << "[func] [copytext("------------------------------------------------------------------------", length("[func]"))]"
 		var/test/T = new
 		call(T, func)()
+	sleep(10) // yield to allow tests to run
 	world.log << "meow im done :)"
