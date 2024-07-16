@@ -5,12 +5,9 @@
 
 use std::{collections::HashMap, rc::Rc};
 
-use byondapi::{
-    map::{byond_locatexyz, ByondXYZ},
-    prelude::*,
-};
+use byondapi::prelude::*;
 use dmm_lite::prefabs::{Literal, Prefab};
-use eyre::{eyre, Context};
+use eyre::eyre;
 use tracy_full::{frame, zone};
 
 /// This type is used to wrap a ByondValue in IncRef/DecRef
@@ -84,7 +81,7 @@ impl CachedTurfs {
     /// Caches a turf
     pub fn cache(&mut self, coord: (usize, usize, usize)) -> eyre::Result<()> {
         if let std::collections::hash_map::Entry::Vacant(e) = self.cached_turfs.entry(coord) {
-            let turf = lookup_turf_by_coord_tuple(coord)?;
+            let turf = unsafe { extremely_unsafe_resolve_coord(coord, self.world_bounds)? };
             e.insert(Rc::new(SmartByondValue::from(turf)));
         }
 
@@ -97,13 +94,35 @@ impl CachedTurfs {
         if let Some(turf) = self.cached_turfs.get(&coord) {
             Ok(turf.get_temp_ref())
         } else {
-            let turf = lookup_turf_by_coord_tuple(coord)?;
+            let turf = unsafe { extremely_unsafe_resolve_coord(coord, self.world_bounds)? };
 
             self.cached_turfs
                 .insert(coord, Rc::new(SmartByondValue::from(turf)));
 
             Ok(turf)
         }
+    }
+}
+
+/// Safety: You're fucked honestly
+/// This is extremely dependent on internal BYOND data structures that ~probably~ won't ever change
+/// You'll find out it did when this segfaults in byondcore :D
+unsafe fn extremely_unsafe_resolve_coord(
+    coord: (usize, usize, usize),
+    world_size: (usize, usize, usize),
+) -> eyre::Result<ByondValue> {
+    zone!("extremely_unsafe_resolve_coord");
+    let (max_x, max_y, max_z) = world_size;
+    let (x, y, z) = (coord.0 - 1, coord.1 - 1, coord.2 - 1);
+    if (0..max_x).contains(&x) && (0..max_y).contains(&y) && (0..max_z).contains(&z) {
+        Ok(ByondValue::new_ref(
+            ValueType::Turf,
+            (x + y * max_x + z * max_x * max_y) as u32,
+        ))
+    } else {
+        Err(eyre!(
+            "Attempted to get out-of-range tile at coords {coord:#?}"
+        ))
     }
 }
 
@@ -670,15 +689,4 @@ fn convert_literal_to_byondvalue(
             list
         }
     })
-}
-
-fn convert_coord_tuple_to_byondxyz(coord: (usize, usize, usize)) -> ByondXYZ {
-    zone!("convert_coord_tuple_to_byondxyz");
-    ByondXYZ::with_coords((coord.0 as i16, coord.1 as i16, coord.2 as i16))
-}
-
-fn lookup_turf_by_coord_tuple(coord: (usize, usize, usize)) -> eyre::Result<ByondValue> {
-    zone!("lookup_turf_by_coord_tuple");
-    let byondxyz = convert_coord_tuple_to_byondxyz(coord);
-    byond_locatexyz(byondxyz).context(format!("Failed to get turf at {byondxyz:#?}"))
 }
