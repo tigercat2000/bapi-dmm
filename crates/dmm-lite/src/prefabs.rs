@@ -2,8 +2,10 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use regex::Regex;
 use std::collections::HashMap;
 use winnow::{
-    ascii::{alpha1, dec_int, float, line_ending, multispace0, space0, space1},
-    combinator::{alt, delimited, opt, peek, repeat, separated_pair, terminated},
+    ascii::{
+        alpha0, alpha1, alphanumeric0, dec_int, float, line_ending, multispace0, space0, space1,
+    },
+    combinator::{alt, delimited, opt, peek, preceded, repeat, separated_pair, terminated},
     error::{ErrMode, StrContext},
     prelude::*,
     stream::Stream,
@@ -221,7 +223,7 @@ pub enum Literal<'s> {
     Null,
     Fallback(&'s str),
     List(Vec<Literal<'s>>),
-    AssocList(HashMap<&'s str, Literal<'s>>),
+    AssocList(Vec<(Literal<'s>, Literal<'s>)>),
 }
 
 pub fn parse_literal<'s>(i: &mut &'s str) -> PResult<Literal<'s>> {
@@ -275,9 +277,20 @@ pub fn parse_literal_string<'s>(i: &mut &'s str) -> PResult<&'s str> {
     }
 }
 
+pub fn parse_bare_list_key<'s>(i: &mut &'s str) -> PResult<Literal<'s>> {
+    terminated(preceded(peek(alpha0), alphanumeric0), peek(alt((' ', '='))))
+        .map(Literal::Fallback)
+        .parse_next(i)
+}
+
 pub fn parse_literal_list<'s>(i: &mut &'s str) -> PResult<Literal<'s>> {
     // Must start with "list("
     "list(".parse_next(i)?;
+
+    // Special case: Empty lists
+    if *i == ")" {
+        return Ok(Literal::List(vec![]));
+    }
 
     alt((
         // Lists are either associative
@@ -285,14 +298,14 @@ pub fn parse_literal_list<'s>(i: &mut &'s str) -> PResult<Literal<'s>> {
             1..,
             terminated(
                 separated_pair(
-                    alt((parse_literal_string, parse_identifier)),
+                    alt((parse_bare_list_key, parse_literal)),
                     delimited(space0, '=', space0),
                     parse_literal,
                 ),
                 delimited(space0, alt((',', ')')), space0),
             ),
         )
-        .map(|pairs: HashMap<&str, Literal>| Literal::AssocList(pairs)),
+        .map(|pairs: Vec<(Literal, Literal)>| Literal::AssocList(pairs)),
         // Or not
         repeat(
             1..,
@@ -505,11 +518,12 @@ mod tests {
         );
 
         let mut assoc_list = r#"list("meow"="meow2")"#;
-        let mut expected_hashmap = HashMap::new();
-        expected_hashmap.insert("meow", Literal::String("meow2"));
         assert_eq!(
             parse_literal.parse_next(&mut assoc_list),
-            Ok(Literal::AssocList(expected_hashmap))
+            Ok(Literal::AssocList(vec![(
+                Literal::String("meow"),
+                Literal::String("meow2")
+            )]))
         );
 
         let mut float = "1.4";
@@ -547,11 +561,27 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_bare_list_key() {
+        let mut evil_key = r#"aaa = 2"#;
+        assert_eq!(
+            parse_bare_list_key.parse_next(&mut evil_key),
+            Ok(Literal::Fallback("aaa"))
+        );
+        assert_eq!(evil_key, " = 2");
+
+        let mut evil_list = "list(aaa = 2)";
+        assert_eq!(
+            parse_literal_list.parse_next(&mut evil_list),
+            Ok(Literal::AssocList(vec![(
+                Literal::Fallback("aaa"),
+                Literal::Number(2.)
+            )]))
+        )
+    }
+
+    #[test]
     fn test_parse_var_list_full() {
         let mut omega_list = r#"{icon = 'icons/\'obj/crate.dmi'; name = "\"funny\" girl"; req_access = list(1, 2); req_one_access = list("meow" = 2, aaaa = 4); pixel_x = -7; spawns = /obj/item/meower; haha = 4e4; death = null; invalid = gmddmf}"#;
-        let mut expected_map = HashMap::new();
-        expected_map.insert("meow", Literal::Number(2.));
-        expected_map.insert("aaaa", Literal::Number(4.));
 
         assert_eq!(
             parse_var_list.parse_next(&mut omega_list),
@@ -562,13 +592,83 @@ mod tests {
                     "req_access",
                     Literal::List(vec![Literal::Number(1.), Literal::Number(2.),])
                 ),
-                ("req_one_access", Literal::AssocList(expected_map)),
+                (
+                    "req_one_access",
+                    Literal::AssocList(vec![
+                        (Literal::String("meow"), Literal::Number(2.)),
+                        (Literal::Fallback("aaaa"), Literal::Number(4.)),
+                    ])
+                ),
                 ("pixel_x", Literal::Number(-7.)),
                 ("spawns", Literal::Path("/obj/item/meower")),
                 ("haha", Literal::Number(4e4)),
                 ("death", Literal::Null),
                 ("invalid", Literal::Fallback("gmddmf"))
             ])
+        )
+    }
+
+    #[test]
+    fn test_weird_error_from_virgo() {
+        let mut list = r#""ii" = (
+/obj/machinery/vending/engivend{
+	products = list(/obj/item/device/geiger = 4, /obj/item/clothing/glasses/meson = 2);
+	req_access = list(301);
+	req_log_access = 301
+	},
+/turf/simulated/floor/tiled/techfloor/grid,
+/area/talon_v2/engineering/star_store)"#;
+
+        let (key, prefabs) = parse_prefab_line(&mut list).unwrap();
+        assert_eq!(key, "ii");
+        assert_eq!(
+            prefabs,
+            vec![
+                (
+                    "/obj/machinery/vending/engivend",
+                    Some(vec![
+                        (
+                            "products",
+                            Literal::AssocList(vec![
+                                (
+                                    Literal::Path("/obj/item/device/geiger"),
+                                    Literal::Number(4.)
+                                ),
+                                (
+                                    Literal::Path("/obj/item/clothing/glasses/meson"),
+                                    Literal::Number(2.)
+                                )
+                            ])
+                        ),
+                        ("req_access", Literal::List(vec![Literal::Number(301.)])),
+                        ("req_log_access", Literal::Number(301.))
+                    ]),
+                ),
+                ("/turf/simulated/floor/tiled/techfloor/grid", None),
+                ("/area/talon_v2/engineering/star_store", None),
+            ]
+        )
+    }
+
+    #[test]
+    fn test_empty_list() {
+        let mut list = r#""bd" = (
+/obj/structure/closet/secure_closet/guncabinet/sidearm{
+	anchored = 1;
+	starts_with = list()
+	})"#;
+        let (key, prefabs) = parse_prefab_line.parse_next(&mut list).unwrap();
+
+        assert_eq!(key, "bd");
+        assert_eq!(
+            prefabs,
+            vec![(
+                "/obj/structure/closet/secure_closet/guncabinet/sidearm",
+                Some(vec![
+                    ("anchored", Literal::Number(1.)),
+                    ("starts_with", Literal::List(vec![]))
+                ])
+            )]
         )
     }
 }

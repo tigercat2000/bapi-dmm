@@ -6,6 +6,7 @@ use crate::_compat::setup_panic_handler;
 type ResumeKey = usize;
 
 pub mod _compat;
+pub mod grid;
 pub mod helpers;
 pub mod load_buffer;
 pub mod parse;
