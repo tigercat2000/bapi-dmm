@@ -1,5 +1,5 @@
-/// This is all stuff for compatibility playing nice with BYOND
-/// such as error logging, panic handling, binding generation
+//! This is all stuff for compatibility playing nice with BYOND
+//! such as error logging, panic handling, binding generation
 use byondapi::prelude::*;
 use std::{fs::OpenOptions, io::Write};
 

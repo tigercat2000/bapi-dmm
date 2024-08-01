@@ -6,10 +6,9 @@ use crate::_compat::setup_panic_handler;
 type ResumeKey = usize;
 
 pub mod _compat;
-pub mod grid;
-pub mod helpers;
-pub mod load_buffer;
+pub mod load;
 pub mod parse;
+pub mod random_map;
 
 /// This self-referencing structure holds a loaded map file in memory plus many
 /// views into the map file, in the form of `&str`s from dmm_lite's `winnow` parser
@@ -22,7 +21,7 @@ struct Map {
     parsed_data: (dmm_lite::MapInfo, dmm_lite::MapData<'this>),
     #[borrows(map_data, parsed_data)]
     #[covariant]
-    command_buffers: HashMap<ResumeKey, load_buffer::CommandBuffer<'this>>,
+    command_buffers: HashMap<ResumeKey, load::command_buffer::CommandBuffer<'this>>,
 }
 
 /// Note: We only ever access this from the main BYOND thread, which is also where our DLL is loaded

@@ -1,8 +1,7 @@
+//! This provides a grid struct which can be used to rotate a given tile grid before iterating over it in BYOND order
 use array2d::Array2D;
 
-use crate::load_buffer::separate_turfs;
-
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Rotation {
     None,
     Ninety,
@@ -101,6 +100,24 @@ impl<'a> Grid<'a> {
                 .collect(),
         }
     }
+}
+
+fn separate_turfs(mut s: &str, n: usize) -> impl Iterator<Item = &'_ str> {
+    assert_ne!(n, 0);
+    std::iter::from_fn(move || {
+        let index = s
+            .char_indices()
+            .nth(n)
+            .map(|(index, _)| index)
+            .unwrap_or(s.len());
+        let (item, rest) = s.split_at(index);
+        if item.is_empty() {
+            None
+        } else {
+            s = rest;
+            Some(item)
+        }
+    })
 }
 
 #[cfg(test)]

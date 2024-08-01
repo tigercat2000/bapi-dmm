@@ -1,0 +1,32 @@
+//! [`ByondValue`] only lives for one tick, but [`CommandBuffer`] needs to hold them for longer than one tick - so this
+//! wraps [`ByondValue`] with IncRef/DecRef and [`Rc`] to make it easy on us
+
+use byondapi::value::ByondValue;
+use std::rc::Rc;
+
+/// This type is used to wrap a ByondValue in IncRef/DecRef
+#[derive(Debug)]
+pub struct SmartByondValue {
+    _internal: ByondValue,
+}
+
+impl From<ByondValue> for SmartByondValue {
+    fn from(mut value: ByondValue) -> Self {
+        value.increment_ref();
+        SmartByondValue { _internal: value }
+    }
+}
+
+impl Drop for SmartByondValue {
+    fn drop(&mut self) {
+        self._internal.decrement_ref()
+    }
+}
+
+impl SmartByondValue {
+    pub fn get_temp_ref(&self) -> ByondValue {
+        self._internal
+    }
+}
+
+pub type SharedByondValue = Rc<SmartByondValue>;
