@@ -1,5 +1,5 @@
-//! [`ByondValue`] only lives for one tick, but [`CommandBuffer`] needs to hold them for longer than one tick - so this
-//! wraps [`ByondValue`] with IncRef/DecRef and [`Rc`] to make it easy on us
+//! [`ByondValue`] only lives for one tick, but [`crate::load::command_buffer::CommandBuffer`] needs to hold them for
+//! longer than one tick - so this wraps [`ByondValue`] with IncRef/DecRef and [`Rc`] to make it easy on us
 
 use byondapi::value::ByondValue;
 use std::rc::Rc;
@@ -29,4 +29,5 @@ impl SmartByondValue {
     }
 }
 
+/// For when you need to also share ownership of the smart ref.
 pub type SharedByondValue = Rc<SmartByondValue>;

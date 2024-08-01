@@ -1,3 +1,4 @@
+//! All things to do with parsing the map in preparation for loading it
 use byondapi::prelude::*;
 use eyre::eyre;
 use std::{collections::HashMap, path::Path};

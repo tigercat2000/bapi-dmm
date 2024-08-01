@@ -32,30 +32,35 @@ pub fn _bapi_helper_get_world_type_area() -> Result<String> {
         .context("Unable to get world.area")
 }
 
+/// Tries to find an existing area instance of type `path`, and creates it if it doesn't exist.
 pub fn _bapi_create_or_get_area(path: &str) -> Result<ByondValue> {
     zone!("_bapi_create_or_get_area");
     call_global("_bapi_create_or_get_area", &[ByondValue::new_str(path)?])
         .context("Failed to create or get area")
 }
 
+/// Only used on /tg/ downstreams, handles turfs_by_zlevel on /area.
 pub fn _bapi_handle_area_contain(turf: ByondValue, area: ByondValue) -> Result<()> {
     zone!("_bapi_handle_area_contain");
     call_global("_bapi_handle_area_contain", &[turf, area])?;
     Ok(())
 }
 
+/// Adds a turf to an area's contents. Note that this technically recreates the turf.
 pub fn _bapi_add_turf_to_area(area: ByondValue, turf: ByondValue) -> Result<()> {
     zone!("_bapi_add_turf_to_area");
     call_global("_bapi_add_turf_to_area", &[area, turf])?;
     Ok(())
 }
 
+/// Calls text2path and returns the path.
 pub fn _bapi_helper_text2path(text: &str) -> Result<ByondValue> {
     zone!("_bapi_helper_text2path");
     call_global("_bapi_helper_text2path", &[ByondValue::new_str(text)?])
         .context("Failed to call text2path")
 }
 
+/// Calls text2file.
 pub fn _bapi_helper_text2file(path: &str) -> Result<ByondValue> {
     zone!("_bapi_helper_text2file");
     call_global("_bapi_helper_text2file", &[ByondValue::new_str(path)?])
@@ -63,18 +68,21 @@ pub fn _bapi_helper_text2file(path: &str) -> Result<ByondValue> {
 }
 
 /// THE GODDAMN THING THAT MADE THIS FILE NECESSARY
+/// Sets up the atom preloader to instantiate vars on /New.
 pub fn _bapi_setup_preloader(vars_list: ByondValue, path: ByondValue) -> Result<()> {
     zone!("_bapi_setup_preloader");
     call_global("_bapi_setup_preloader", &[vars_list, path])?;
     Ok(())
 }
 
+/// Applies the preloader immediately, used for atoms that sleep in New() and try to fuck us.
 pub fn _bapi_apply_preloader(instance: ByondValue) -> Result<()> {
     zone!("_bapi_apply_preloader");
     call_global("_bapi_apply_preloader", &[instance])?;
     Ok(())
 }
 
+/// "Creates" a turf, really just changes whatever is at the given turf ref to what the map needs to be there.
 pub fn _bapi_create_turf(
     turf: ByondValue,
     path_text: &str,
@@ -96,6 +104,7 @@ pub fn _bapi_create_turf(
     .context("Failed to call text2file")
 }
 
+/// Calls TICK_CHECK - basically checking if the server is overrunning or about to overrun it's tick.
 pub fn _bapi_helper_tick_check() -> Result<bool> {
     zone!("_bapi_helper_tick_check");
     let result = call_global("_bapi_helper_tick_check", &[])?;

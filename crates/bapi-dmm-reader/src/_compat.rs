@@ -3,6 +3,7 @@
 use byondapi::prelude::*;
 use std::{fs::OpenOptions, io::Write};
 
+/// Writes a debug log to PWD in the hopes of helping debug rust-internal issues.
 pub fn write_log<T: AsRef<[u8]>>(x: T) {
     if let Ok(mut f) = OpenOptions::new()
         .append(true)
@@ -13,6 +14,7 @@ pub fn write_log<T: AsRef<[u8]>>(x: T) {
     }
 }
 
+/// Sets up a panic hook to prevent crashing the BYOND VM if we fuck up on the main thread.
 pub fn setup_panic_handler() {
     std::panic::set_hook(Box::new(|info| {
         write_log(format!("Panic {:#?}", info));
@@ -20,7 +22,6 @@ pub fn setup_panic_handler() {
 }
 
 #[byondapi::bind]
-/// Returns "10" if loaded correctly
 pub fn _bapidmm_test_connection() {
     setup_panic_handler();
     Ok(ByondValue::new_num(10f32))

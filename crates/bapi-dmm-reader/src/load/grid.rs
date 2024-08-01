@@ -1,6 +1,7 @@
 //! This provides a grid struct which can be used to rotate a given tile grid before iterating over it in BYOND order
 use array2d::Array2D;
 
+/// Degrees to rotate the grid by.
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum Rotation {
     None,
@@ -9,12 +10,14 @@ pub enum Rotation {
     TwoSeventy,
 }
 
+/// Helper struct for working with a 2d grid, primarily for rotating it by 90 degree increments.
 pub struct Grid<'a> {
     bottom_left: (usize, usize, usize),
     array: Array2D<&'a str>,
 }
 
 impl<'a> Grid<'a> {
+    /// Create a new grid at the given origin, from a list of lines in a dmm file.
     pub fn new(
         bottom_left: (usize, usize, usize),
         key_len: usize,
@@ -29,6 +32,7 @@ impl<'a> Grid<'a> {
         Ok(Self { bottom_left, array })
     }
 
+    /// Rotates the grid and returns a Vec iterating over the coordinates in byond order.
     pub fn rotate(&self, rotation: Rotation) -> Vec<((usize, usize, usize), &str)> {
         let num_rows = self.array.num_rows();
         let num_columns = self.array.num_columns();
