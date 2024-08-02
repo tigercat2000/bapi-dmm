@@ -102,7 +102,6 @@
 	z_upper = INFINITY,
 	place_on_top = FALSE,
 	new_z = FALSE,
-	orientation = 0,
 )
 	if(!(dmm_file in cached_maps))
 		cached_maps[dmm_file] = new /datum/bapi_parsed_map(dmm_file)
@@ -110,7 +109,7 @@
 	var/datum/bapi_parsed_map/parsed_map = cached_maps[dmm_file]
 	parsed_map = parsed_map.copy()
 	if(!measure_only && !isnull(parsed_map.bounds))
-		parsed_map.load(x_offset, y_offset, z_offset, crop_map, no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper, place_on_top, new_z, orientation)
+		parsed_map.load(x_offset, y_offset, z_offset, crop_map, no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper, place_on_top, new_z)
 	return parsed_map
 
 /datum/bapi_parsed_map/New(tfile)
@@ -159,10 +158,9 @@
 	z_upper = INFINITY,
 	place_on_top = FALSE,
 	new_z = FALSE,
-	orientation = 0,
 )
 	Master.StartLoadingMap()
-	. = _load_impl(x_offset, y_offset, z_offset, crop_map, no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper, place_on_top, new_z, orientation)
+	. = _load_impl(x_offset, y_offset, z_offset, crop_map, no_changeturf, x_lower, x_upper, y_lower, y_upper, z_lower, z_upper, place_on_top, new_z)
 	Master.StopLoadingMap()
 
 /datum/bapi_parsed_map/proc/_load_impl(
@@ -179,7 +177,6 @@
 	z_upper = INFINITY,
 	place_on_top = FALSE,
 	new_z = FALSE,
-	orientation = 0,
 )
 	PRIVATE_PROC(TRUE)
 	SSatoms.map_loader_begin(REF(src))
@@ -200,7 +197,6 @@
 		z_upper,
 		place_on_top,
 		new_z,
-		orientation
 	)
 
 	if(!resume_key)
