@@ -239,7 +239,7 @@ fn generate_command_buffer(
                         }
                         if !prefab_area.0.starts_with("/area/template_noop") {
                             zone!("generating CreateArea");
-                            our_command_buffer.commands.push(Command::CreateArea { loc: exact_coord, prefab: prefab_area, new_z });
+                            our_command_buffer.commands.push_back(Command::CreateArea { loc: exact_coord, prefab: prefab_area, new_z });
                         }
 
                         let prefab_turf = prefab_list.next().unwrap();
@@ -251,7 +251,7 @@ fn generate_command_buffer(
                         }
                         if !prefab_turf.0.starts_with("/turf/template_noop") {
                             zone!("generating CreateTurf");
-                            our_command_buffer.commands.push(Command::CreateTurf { loc: exact_coord, prefab: prefab_turf, no_changeturf: no_afterchange, place_on_top  })
+                            our_command_buffer.commands.push_back(Command::CreateTurf { loc: exact_coord, prefab: prefab_turf, no_changeturf: no_afterchange, place_on_top  })
                         }
 
                         // We reverse it again after doing the turf and area
@@ -265,7 +265,7 @@ fn generate_command_buffer(
                             }
                             zone!("generating CreateAtom");
                             // Movables are easy
-                            our_command_buffer.commands.push(Command::CreateAtom { loc: exact_coord, prefab: instance });
+                            our_command_buffer.commands.push_back(Command::CreateAtom { loc: exact_coord, prefab: instance });
                         }
                     } else {
                         // Note: Cannot hard error or map will fail to finish loading
