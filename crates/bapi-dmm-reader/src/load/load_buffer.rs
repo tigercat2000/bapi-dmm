@@ -7,7 +7,7 @@ use eyre::eyre;
 use tracy_full::{frame, zone};
 
 use crate::{
-    _compat::setup_panic_handler,
+    _compat::{setup_panic_handler, write_log},
     load::{
         command_buffer::{Command, CommandBuffer},
         grid::{Grid, Rotation},
@@ -278,6 +278,10 @@ fn generate_command_buffer(
         }
 
         parsed_map.set_bounds(bounds)?;
+
+        if orientation == Rotation::OneEighty && _metadata.is_tgm {
+            write_log(format!("Command Buffer for 180: {:#?}", our_command_buffer.commands))
+        }
 
         command_buffers.insert(resume_key, our_command_buffer);
 

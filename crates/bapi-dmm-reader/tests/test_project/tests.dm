@@ -166,6 +166,70 @@
 	ASSERT(istype(locate(1, 1, 1), /turf/turf_type_i))
 	ASSERT(istype(locate(3, 1, 1), /turf/turf_type_c))
 
+/test/proc/rotation_test_tgm()
+	for(var/A in world)
+		del(A)
+	world.maxx = 0
+	world.maxy = 0
+	world.maxz = 0
+
+	world.log << "0 degrees"
+	var/datum/bapi_parsed_map/B = load_map("rotation_tgm.dmm", new_z = TRUE, no_changeturf = TRUE)
+	if(B.has_warnings())
+		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
+
+	ASSERT(istype(locate(1, 3, 1), /turf/turf_type_a))
+	ASSERT(istype(locate(3, 3, 1), /turf/turf_type_c))
+	ASSERT(istype(locate(1, 1, 1), /turf/turf_type_g))
+	ASSERT(istype(locate(3, 1, 1), /turf/turf_type_i))
+
+	for(var/A in world)
+		del(A)
+	world.maxx = 0
+	world.maxy = 0
+	world.maxz = 0
+
+	world.log << "180 degrees"
+	B = load_map("rotation_tgm.dmm", orientation = 180, new_z = TRUE, no_changeturf = TRUE)
+	if(B.has_warnings())
+		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
+
+	ASSERT(istype(locate(1, 3, 1), /turf/turf_type_i))
+	ASSERT(istype(locate(3, 3, 1), /turf/turf_type_g))
+	ASSERT(istype(locate(1, 1, 1), /turf/turf_type_c))
+	ASSERT(istype(locate(3, 1, 1), /turf/turf_type_a))
+
+	for(var/A in world)
+		del(A)
+	world.maxx = 0
+	world.maxy = 0
+	world.maxz = 0
+
+	world.log << "90 degrees"
+	B = load_map("rotation_tgm.dmm", orientation = 90, new_z = TRUE, no_changeturf = TRUE)
+	if(B.has_warnings())
+		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
+
+	ASSERT(istype(locate(1, 3, 1), /turf/turf_type_c))
+	ASSERT(istype(locate(3, 3, 1), /turf/turf_type_i))
+	ASSERT(istype(locate(1, 1, 1), /turf/turf_type_a))
+	ASSERT(istype(locate(3, 1, 1), /turf/turf_type_g))
+
+	for(var/A in world)
+		del(A)
+	world.maxx = 0
+	world.maxy = 0
+	world.maxz = 0
+
+	world.log << "270 degrees"
+	B = load_map("rotation_tgm.dmm", orientation = 270, new_z = TRUE, no_changeturf = TRUE)
+	if(B.has_warnings())
+		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
+
+	ASSERT(istype(locate(1, 3, 1), /turf/turf_type_g))
+	ASSERT(istype(locate(3, 3, 1), /turf/turf_type_a))
+	ASSERT(istype(locate(1, 1, 1), /turf/turf_type_i))
+	ASSERT(istype(locate(3, 1, 1), /turf/turf_type_c))
 
 /test/proc/legacy_test()
 	for(var/A in world)

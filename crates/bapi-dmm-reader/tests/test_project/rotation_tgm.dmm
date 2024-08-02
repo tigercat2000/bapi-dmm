@@ -1,0 +1,44 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"a" = (
+/turf/turf_type_a,
+/area)
+"b" = (
+/turf/turf_type_b,
+/area)
+"c" = (
+/turf/turf_type_c,
+/area)
+"d" = (
+/turf/turf_type_d,
+/area)
+"e" = (
+/turf/turf_type_e,
+/area)
+"f" = (
+/turf/turf_type_f,
+/area)
+"g" = (
+/turf/turf_type_g,
+/area)
+"h" = (
+/turf/turf_type_h,
+/area)
+"i" = (
+/turf/turf_type_i,
+/area)
+
+(1,1,1) = {"
+a
+d
+g
+"}
+(2,1,1) = {"
+b
+e
+h
+"}
+(3,1,1) = {"
+c
+f
+i
+"}

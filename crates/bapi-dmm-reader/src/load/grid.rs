@@ -62,7 +62,7 @@ impl<'a> Grid<'a> {
                         (
                             (
                                 self.bottom_left.0 + x,
-                                self.bottom_left.1 + (num_rows - y - 1),
+                                self.bottom_left.1 + (num_columns - y - 1),
                                 self.bottom_left.2,
                             ),
                             *s,
@@ -94,7 +94,7 @@ impl<'a> Grid<'a> {
                         (
                             (
                                 self.bottom_left.0 + x,
-                                self.bottom_left.1 + (num_rows - y - 1),
+                                self.bottom_left.1 + (num_columns - y - 1),
                                 self.bottom_left.2,
                             ),
                             *s,
@@ -127,6 +127,50 @@ fn separate_turfs(mut s: &str, n: usize) -> impl Iterator<Item = &'_ str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_tgm() {
+        /* a
+         * b
+         * c
+         */
+        let grid = Grid::new((1, 1, 1), 1, &["a", "b", "c"]).unwrap();
+
+        /* a
+         * b
+         * c
+         */
+        assert_eq!(
+            grid.rotate(Rotation::None),
+            vec![((1, 3, 1), "a"), ((1, 2, 1), "b"), ((1, 1, 1), "c")]
+        );
+
+        /*
+         * c
+         * b
+         * a
+         */
+        assert_eq!(
+            grid.rotate(Rotation::OneEighty),
+            vec![((1, 3, 1), "c"), ((1, 2, 1), "b"), ((1, 1, 1), "a")]
+        );
+
+        /*
+         * a b c
+         */
+        assert_eq!(
+            grid.rotate(Rotation::Ninety),
+            vec![((1, 1, 1), "a"), ((2, 1, 1), "b"), ((3, 1, 1), "c")]
+        );
+
+        /*
+         * c b a
+         */
+        assert_eq!(
+            grid.rotate(Rotation::TwoSeventy),
+            vec![((1, 1, 1), "c"), ((2, 1, 1), "b"), ((3, 1, 1), "a")]
+        )
+    }
 
     #[test]
     fn test_iteration_order() {
