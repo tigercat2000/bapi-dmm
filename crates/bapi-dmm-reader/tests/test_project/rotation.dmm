@@ -1,0 +1,15 @@
+"a" = (/turf/turf_type_a,/area)
+"b" = (/turf/turf_type_b,/area)
+"c" = (/turf/turf_type_c,/area)
+"d" = (/turf/turf_type_d,/area)
+"e" = (/turf/turf_type_e,/area)
+"f" = (/turf/turf_type_f,/area)
+"g" = (/turf/turf_type_g,/area)
+"h" = (/turf/turf_type_h,/area)
+"i" = (/turf/turf_type_i,/area)
+
+(1,1,1) = {"
+abc
+def
+ghi
+"}

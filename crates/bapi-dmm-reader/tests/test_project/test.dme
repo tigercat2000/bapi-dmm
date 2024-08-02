@@ -17,6 +17,20 @@
 	color = "#FF0000"
 /turf/turf_type_b
 	color = "#00FF00"
+/turf/turf_type_c
+	color = "#0000FF"
+/turf/turf_type_d
+	color = "#FFFF00"
+/turf/turf_type_e
+	color = "#00FFFF"
+/turf/turf_type_f
+	color = "#FF00FF"
+/turf/turf_type_g
+	color = "#889900"
+/turf/turf_type_h
+	color = "#008899"
+/turf/turf_type_i
+	color = "#990088"
 
 /turf/placed_at_runtime
 /area/placed_at_runtime
