@@ -209,8 +209,8 @@ pub fn parse_var_list_key<'s>(i: &mut &'s str) -> PResult<&'s str> {
 }
 
 pub fn parse_identifier<'s>(i: &mut &'s str) -> PResult<&'s str> {
-    // Ensure it starts with a letter, not a number
-    peek(one_of(('a'..='z', 'A'..='Z'))).parse_peek(*i)?;
+    // Ensure it starts with a letter or underscore, not a number
+    peek(one_of(('a'..='z', 'A'..='Z', '_'))).parse_peek(*i)?;
     take_while(1.., ('a'..='z', 'A'..='Z', '0'..='9', '_')).parse_next(i)
 }
 
