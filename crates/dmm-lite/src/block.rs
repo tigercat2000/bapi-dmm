@@ -4,8 +4,12 @@ use winnow::{
     ascii::{dec_uint, line_ending, space0},
     combinator::{delimited, opt, repeat, separated_pair, terminated},
     prelude::*,
+    stream::Location,
     token::take_while,
+    Located,
 };
+
+use crate::LocatedError;
 
 pub fn parse_coords(i: &mut &str) -> PResult<(usize, usize, usize)> {
     delimited(
@@ -55,14 +59,23 @@ pub fn get_block_locations(i: &str) -> Vec<usize> {
     results
 }
 
-pub fn multithreaded_parse_map_locations(i: &str) -> PResult<Vec<Block>> {
-    let locations = get_block_locations(i);
+pub fn multithreaded_parse_map_locations(i: Located<&str>) -> Result<Vec<Block>, LocatedError> {
+    let locations = get_block_locations(&i);
 
     locations
         .par_iter()
         .map(|loc| {
             let mut substring = &i[*loc..];
-            parse_block(&mut substring)
+            parse_block(&mut substring).map_err(|e| {
+                if let Some(e) = e.into_inner() {
+                    LocatedError {
+                        offset: i.location() + *loc,
+                        underlying: e,
+                    }
+                } else {
+                    panic!("Parser produced Incomplete")
+                }
+            })
         })
         .collect()
 }

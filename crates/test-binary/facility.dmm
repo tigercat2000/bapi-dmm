@@ -1,0 +1,11 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"iWh" = (
+/obj/item/weapon/paper/crumpled/bloody{
+	info = "Report: The Canidfelanis specimens have take a sudden disliking to the lights in their study cell. It's becoming difficult to obser
+	},
+/obj/structure/extinguisher_cabinet{
+	dir = 4;
+	pixel_x = -30
+	},
+/turf/simulated/floor/tiled/white,
+/area/redgate/facility/ne)

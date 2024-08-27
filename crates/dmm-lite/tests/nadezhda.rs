@@ -3,7 +3,7 @@ use dmm_lite::{
     parse_map_multithreaded,
     prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, Literal},
 };
-use winnow::Parser as _;
+use winnow::{Located, Parser as _};
 
 #[test]
 fn test_tgm_detection() {
@@ -17,8 +17,8 @@ fn test_tgm_detection() {
         .skip(1)
         .collect();
 
-    assert!(!detect_tgm(&mut nadezhda.as_str()));
-    assert!(detect_tgm(&mut nadezhda_tgm.as_str()));
+    assert!(!detect_tgm(&nadezhda));
+    assert!(detect_tgm(&nadezhda_tgm));
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn test_prefab_line() {
     println!("nadezhda {nadezhda_tgm:#?}");
 
     assert_eq!(
-        parse_prefab_line.parse_next(&mut nadezhda.as_str()),
+        parse_prefab_line.parse_next(&mut Located::new(nadezhda.as_str())),
         Ok((
             "aaN",
             vec![
@@ -94,7 +94,7 @@ fn test_prefab_line() {
         ))
     );
     assert_eq!(
-        parse_prefab_line.parse_next(&mut nadezhda_tgm.as_str()),
+        parse_prefab_line.parse_next(&mut Located::new(nadezhda_tgm.as_str())),
         Ok((
             "aaN",
             vec![
@@ -134,7 +134,7 @@ fn full_prefab_parse() {
 
     let nadezhda_locations = get_prefab_locations(&nadezhda);
     for loc in nadezhda_locations {
-        let mut parse = &nadezhda[loc..];
+        let mut parse = Located::new(&nadezhda[loc..]);
         parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");
@@ -142,7 +142,7 @@ fn full_prefab_parse() {
 
     let nadezhda_tgm_locations = get_prefab_locations(&nadezhda_tgm);
     for loc in nadezhda_tgm_locations {
-        let mut parse = &nadezhda_tgm[loc..];
+        let mut parse = Located::new(&nadezhda_tgm[loc..]);
         parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");

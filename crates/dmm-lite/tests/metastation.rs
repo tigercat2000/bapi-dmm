@@ -3,7 +3,7 @@ use dmm_lite::{
     parse_map_multithreaded,
     prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, Literal},
 };
-use winnow::Parser as _;
+use winnow::{Located, Parser as _};
 
 #[test]
 fn test_tgm_detection() {
@@ -17,8 +17,8 @@ fn test_tgm_detection() {
         .skip(1)
         .collect();
 
-    assert!(!detect_tgm(&mut metastation.as_str()));
-    assert!(detect_tgm(&mut metastation_tgm.as_str()));
+    assert!(!detect_tgm(&metastation));
+    assert!(detect_tgm(&metastation_tgm));
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn test_prefab_line() {
         .collect();
 
     assert_eq!(
-        parse_prefab_line.parse_next(&mut metastation.as_str()),
+        parse_prefab_line.parse_next(&mut Located::new(metastation.as_str())),
         Ok((
             "aal",
             vec![
@@ -84,7 +84,7 @@ fn test_prefab_line() {
         ))
     );
     assert_eq!(
-        parse_prefab_line.parse_next(&mut metastation_tgm.as_str()),
+        parse_prefab_line.parse_next(&mut Located::new(metastation_tgm.as_str())),
         Ok((
             "aal",
             vec![
@@ -116,7 +116,7 @@ fn full_prefab_parse() {
 
     let metastation_locations = get_prefab_locations(&metastation);
     for loc in metastation_locations {
-        let mut parse = &metastation[loc..];
+        let mut parse = Located::new(&metastation[loc..]);
         parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");
@@ -124,7 +124,7 @@ fn full_prefab_parse() {
 
     let metastation_tgm_locations = get_prefab_locations(&metastation_tgm);
     for loc in metastation_tgm_locations {
-        let mut parse = &metastation_tgm[loc..];
+        let mut parse = Located::new(&metastation_tgm[loc..]);
         parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");

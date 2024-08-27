@@ -3,7 +3,7 @@ use dmm_lite::{
     parse_map_multithreaded,
     prefabs::{detect_tgm, get_prefab_locations, parse_prefab_line, Literal},
 };
-use winnow::Parser;
+use winnow::{Located, Parser};
 
 #[test]
 fn test_tgm_detection() {
@@ -17,8 +17,8 @@ fn test_tgm_detection() {
         .skip(1)
         .collect();
 
-    assert!(!detect_tgm(&mut meow.as_str()));
-    assert!(detect_tgm(&mut meow_tgm.as_str()));
+    assert!(!detect_tgm(&meow));
+    assert!(detect_tgm(&meow_tgm));
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn test_prefab_line() {
         .collect();
 
     assert_eq!(
-        parse_prefab_line.parse_next(&mut meow.as_str()),
+        parse_prefab_line.parse_next(&mut Located::new(meow.as_str())),
         Ok((
             "aaa",
             vec![
@@ -63,7 +63,7 @@ fn test_prefab_line() {
         ))
     );
     assert_eq!(
-        parse_prefab_line.parse_next(&mut meow_tgm.as_str()),
+        parse_prefab_line.parse_next(&mut Located::new(meow_tgm.as_str())),
         Ok((
             "aaa",
             vec![
@@ -81,7 +81,7 @@ fn full_prefab_parse() {
 
     let meow_locations = get_prefab_locations(&meow);
     for loc in meow_locations {
-        let mut parse = &meow[loc..];
+        let mut parse = Located::new(&meow[loc..]);
         parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");
@@ -89,7 +89,7 @@ fn full_prefab_parse() {
 
     let meow_tgm_locations = get_prefab_locations(&meow_tgm);
     for loc in meow_tgm_locations {
-        let mut parse = &meow_tgm[loc..];
+        let mut parse = Located::new(&meow_tgm[loc..]);
         parse_prefab_line
             .parse_next(&mut parse)
             .expect("Prefab didn't parse correctly");

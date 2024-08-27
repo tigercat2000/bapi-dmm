@@ -1,0 +1,12 @@
+[package]
+name = "test-binary"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+clap = { version = "4.5.16", features = ["derive"] }
+clap_derive = "4.5.13"
+dmm-lite = { path = "../dmm-lite" }
+miette = { version = "7.2.0", features = ["fancy"] }
+winnow = "0.6.18"

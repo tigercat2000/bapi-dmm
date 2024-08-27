@@ -3,6 +3,7 @@ use dmm_lite::{
     block::multithreaded_parse_map_locations, parse_map_multithreaded,
     prefabs::multithreaded_parse_map_prefabs,
 };
+use winnow::Located;
 
 fn criterion_benchmark(c: &mut Criterion) {
     let meta_dmm = std::fs::read_to_string("./tests/maps/MetaStation.dmm")
@@ -13,16 +14,20 @@ fn criterion_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("Metastation");
 
     group.bench_function("dmm prefabs", |b| {
-        b.iter_with_large_drop(|| multithreaded_parse_map_prefabs(meta_dmm.as_str()))
+        b.iter_with_large_drop(|| multithreaded_parse_map_prefabs(Located::new(meta_dmm.as_str())))
     });
     group.bench_function("tgm prefabs", |b| {
-        b.iter_with_large_drop(|| multithreaded_parse_map_prefabs(meta_tgm.as_str()))
+        b.iter_with_large_drop(|| multithreaded_parse_map_prefabs(Located::new(meta_tgm.as_str())))
     });
     group.bench_function("dmm blocks", |b| {
-        b.iter_with_large_drop(|| multithreaded_parse_map_locations(meta_dmm.as_str()))
+        b.iter_with_large_drop(|| {
+            multithreaded_parse_map_locations(Located::new(meta_dmm.as_str()))
+        })
     });
     group.bench_function("tgm blocks", |b| {
-        b.iter_with_large_drop(|| multithreaded_parse_map_locations(meta_tgm.as_str()))
+        b.iter_with_large_drop(|| {
+            multithreaded_parse_map_locations(Located::new(meta_tgm.as_str()))
+        })
     });
     group.bench_function("dmm full", |b| {
         b.iter_with_large_drop(|| parse_map_multithreaded(meta_dmm.as_str()))
