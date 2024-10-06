@@ -133,7 +133,8 @@ pub fn multithreaded_parse_map_prefabs(i: Located<&str>) -> Result<Prefabs, Loca
             parse_prefab_line(&mut substring).map_err(|e| {
                 if let Some(e) = e.into_inner() {
                     LocatedError {
-                        offset: i.location() + *loc,
+                        key_offset: i.location() + *loc,
+                        main_offset: substring.location() + i.location() + *loc,
                         underlying: e,
                     }
                 } else {

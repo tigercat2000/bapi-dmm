@@ -11,14 +11,18 @@ pub struct MapInfo {
 
 #[derive(Debug)]
 pub struct LocatedError {
-    pub offset: usize,
+    pub key_offset: usize,
+    pub main_offset: usize,
     pub underlying: ContextError,
 }
 
 impl LocatedError {
     pub fn debug_print(&self, input: &str) {
         let report = miette!(
-            labels = vec![LabeledSpan::at_offset(self.offset, "Key causing cut"),],
+            labels = vec![
+                LabeledSpan::at_offset(self.key_offset, "Key causing cut"),
+                LabeledSpan::at_offset(self.main_offset, "Last parsed")
+            ],
             "{:#?}",
             self.underlying
         )
@@ -39,7 +43,8 @@ pub fn parse_map_multithreaded(i: &str) -> Result<(MapInfo, MapData), LocatedErr
     .map_err(|e| {
         if let Some(e) = e.into_inner() {
             LocatedError {
-                offset: 0,
+                key_offset: 0,
+                main_offset: 0,
                 underlying: e,
             }
         } else {

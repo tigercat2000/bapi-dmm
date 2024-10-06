@@ -11,7 +11,7 @@ use winnow::{
 
 use crate::LocatedError;
 
-pub fn parse_coords(i: &mut &str) -> PResult<(usize, usize, usize)> {
+pub fn parse_coords(i: &mut Located<&str>) -> PResult<(usize, usize, usize)> {
     delimited(
         '(',
         separated_pair(dec_uint, ',', separated_pair(dec_uint, ',', dec_uint)),
@@ -21,11 +21,11 @@ pub fn parse_coords(i: &mut &str) -> PResult<(usize, usize, usize)> {
     .parse_next(i)
 }
 
-pub fn map_characters<'s>(i: &mut &'s str) -> PResult<&'s str> {
+pub fn map_characters<'s>(i: &mut Located<&'s str>) -> PResult<&'s str> {
     take_while(1.., ('a'..='z', 'A'..='Z')).parse_next(i)
 }
 
-pub fn parse_map_lines<'s>(i: &mut &'s str) -> PResult<Vec<&'s str>> {
+pub fn parse_map_lines<'s>(i: &mut Located<&'s str>) -> PResult<Vec<&'s str>> {
     delimited(
         ("{\"", opt(line_ending)),
         repeat(1.., terminated(map_characters, opt(line_ending))),
@@ -35,7 +35,7 @@ pub fn parse_map_lines<'s>(i: &mut &'s str) -> PResult<Vec<&'s str>> {
 }
 
 pub type Block<'s> = ((usize, usize, usize), Vec<&'s str>);
-pub fn parse_block<'s>(i: &mut &'s str) -> PResult<Block<'s>> {
+pub fn parse_block<'s>(i: &mut Located<&'s str>) -> PResult<Block<'s>> {
     separated_pair(
         parse_coords,
         delimited(space0, '=', space0),
@@ -65,11 +65,12 @@ pub fn multithreaded_parse_map_locations(i: Located<&str>) -> Result<Vec<Block>,
     locations
         .par_iter()
         .map(|loc| {
-            let mut substring = &i[*loc..];
+            let mut substring = Located::new(&i[*loc..]);
             parse_block(&mut substring).map_err(|e| {
                 if let Some(e) = e.into_inner() {
                     LocatedError {
-                        offset: i.location() + *loc,
+                        key_offset: i.location() + *loc,
+                        main_offset: substring.location() + i.location() + *loc,
                         underlying: e,
                     }
                 } else {
