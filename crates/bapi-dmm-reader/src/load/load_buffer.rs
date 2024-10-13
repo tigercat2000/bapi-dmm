@@ -267,10 +267,18 @@ fn generate_command_buffer<'a>(
                     for instance in prefab_list.rev() {
                         // We allow these but warn about them
                         if !instance.0.starts_with("/obj") && !instance.0.starts_with("/mob") {
-                            parsed_map.add_warning(
+                            if instance.0.starts_with("/turf") {
+                                parsed_map.add_warning(
                                     format!(
-                                        "Prefab {prefab_key:#?} has a strange element that we'll treat as a movable: {instance:#?}"
+                                        "Prefab {prefab_key:#?} had a secondary turf that we aren't going to deal with: {instance:#?}"
                                     ))?;
+                                continue;
+                            } else {
+                                parsed_map.add_warning(
+                                        format!(
+                                            "Prefab {prefab_key:#?} has a strange element that we'll treat as a movable: {instance:#?}"
+                                        ))?;
+                            }
                         }
                         zone!("generating CreateAtom");
                         // Movables are easy
