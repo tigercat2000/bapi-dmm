@@ -3,7 +3,10 @@ use byondapi::prelude::*;
 use eyre::eyre;
 use std::{collections::HashMap, path::Path};
 
-use crate::{_compat::setup_panic_handler, ouroboros_impl_map::MapTryBuilder, PARSED_MAPS};
+use crate::{
+    _compat::setup_panic_handler,
+    arena::{get_arena, ArenaMap, PARSED_MAPS_ARENABASED},
+};
 
 const MAP_TGM: &str = "tgm";
 const MAP_DMM: &str = "dmm";
@@ -28,37 +31,37 @@ pub fn _bapidmm_parse_map_blocking(dmm_file: ByondValue, mut map_datum: ByondVal
     let string = std::fs::read_to_string(path)
         .map_err(|e| eyre!("Failed to read {dmm_file_str:#?}: {e:#?}"))?;
 
-    let map = MapTryBuilder {
-        map_data: string,
-        parsed_data_builder: |map_data: &String| {
-            dmm_lite::parse_map_multithreaded(
-                path.file_name()
-                    .map(|s| s.to_string_lossy())
-                    .unwrap_or(std::borrow::Cow::Owned("<unk filename>".to_owned()))
-                    .to_string(),
-                map_data,
-            )
-        },
-        command_buffers_builder: |_, _| Ok(HashMap::new()),
-    }
-    .try_build()
+    // SAFETY: Only called from main thread.
+    let string = unsafe { get_arena() }.alloc(string);
+
+    let map = dmm_lite::parse_map_multithreaded(
+        path.file_name()
+            .map(|s| s.to_string_lossy())
+            .unwrap_or(std::borrow::Cow::Owned("<unk filename>".to_owned()))
+            .to_string(),
+        string,
+    )
+    .map(|parsed_data| ArenaMap {
+        parsed_data,
+        command_buffers: HashMap::new(),
+    })
     .map_err(|e| eyre!("Error parsing {dmm_file_str:#?}: {e:#?}"))?;
 
     map_datum.write_var("original_path", &dmm_file)?;
 
     map_datum.write_var(
         "map_format",
-        &ByondValue::new_str(if map.borrow_parsed_data().0.is_tgm {
+        &ByondValue::new_str(if map.parsed_data.0.is_tgm {
             MAP_TGM
         } else {
             MAP_DMM
         })?,
     )?;
 
-    find_metadata(&mut map_datum, map.borrow_parsed_data())?;
+    find_metadata(&mut map_datum, &map.parsed_data)?;
 
     let index = {
-        let mut maps_list = unsafe { PARSED_MAPS.borrow_mut() };
+        let mut maps_list = unsafe { PARSED_MAPS_ARENABASED.borrow_mut() };
         maps_list.push(map);
         maps_list.len() - 1
     };

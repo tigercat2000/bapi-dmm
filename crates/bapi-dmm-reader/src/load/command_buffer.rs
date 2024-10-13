@@ -21,7 +21,7 @@ use crate::{
         },
         smart_byond_value::{SharedByondValue, SmartByondValue},
     },
-    PARSED_MAPS,
+    PARSED_MAPS_ARENABASED,
 };
 
 /// Used by [`CommandBuffer`] to know what it needs to do in a big list.
@@ -135,29 +135,28 @@ pub fn _bapidmm_work_commandbuffer(parsed_map: ByondValue, resume_key: ByondValu
     let resume_key = resume_key.get_number()? as usize;
 
     zone!("borrow parsed_map");
-    let internal_data = unsafe { PARSED_MAPS.get_mut() }
+    let internal_data = unsafe { PARSED_MAPS_ARENABASED.get_mut() }
         .get_mut(id)
         .ok_or_else(|| eyre!("Bad internal index {id:#?}"))?;
 
     zone!("borrow internal_data");
     let mut minimum_pause_counter = 0;
-    internal_data.with_mut(|all_fields| {
-        let command_buffers_map = all_fields.command_buffers;
 
-        zone!("lookup our buffer");
-        if let Some(our_command_buffer) = command_buffers_map.get_mut(&resume_key) {
-            zone!("command loop");
-            let cached_turfs = &mut our_command_buffer.cached_turfs;
-            cached_turfs.check_invalidate()?;
+    let command_buffers_map = &mut internal_data.command_buffers;
 
-            while let Some(command) = our_command_buffer.commands.pop_front() {
-                match command {
-                    Command::CreateArea { loc, prefab, new_z } => {
-                        zone!("Commmand::CreateArea");
+    zone!("lookup our buffer");
+    if let Some(our_command_buffer) = command_buffers_map.get_mut(&resume_key) {
+        zone!("command loop");
+        let cached_turfs = &mut our_command_buffer.cached_turfs;
+        cached_turfs.check_invalidate()?;
 
-                        let area = if let Some(area) =
-                            our_command_buffer.created_areas.get_mut(prefab.0)
-                        {
+        while let Some(command) = our_command_buffer.commands.pop_front() {
+            match command {
+                Command::CreateArea { loc, prefab, new_z } => {
+                    zone!("Commmand::CreateArea");
+
+                    let area =
+                        if let Some(area) = our_command_buffer.created_areas.get_mut(prefab.0) {
                             area
                         } else {
                             zone!("new area creation");
@@ -168,81 +167,79 @@ pub fn _bapidmm_work_commandbuffer(parsed_map: ByondValue, resume_key: ByondValu
                             our_command_buffer.created_areas.get_mut(prefab.0).unwrap()
                         };
 
-                        let area_ref = area.get_temp_ref();
-                        let turf_ref = cached_turfs.resolve_coord(loc)?;
-                        if turf_ref.is_null() {
-                            parsed_map.add_warning(format!(
-                                "Unable to create atom at {loc:#?} because coord was null"
-                            ))?;
-                            continue;
-                        }
+                    let area_ref = area.get_temp_ref();
+                    let turf_ref = cached_turfs.resolve_coord(loc)?;
+                    if turf_ref.is_null() {
+                        parsed_map.add_warning(format!(
+                            "Unable to create atom at {loc:#?} because coord was null"
+                        ))?;
+                        continue;
+                    }
 
-                        if !new_z {
-                            _bapi_handle_area_contain(turf_ref, area_ref)?;
-                        }
-                        _bapi_add_turf_to_area(area_ref, turf_ref)?;
+                    if !new_z {
+                        _bapi_handle_area_contain(turf_ref, area_ref)?;
                     }
-                    Command::CreateTurf {
-                        loc,
-                        prefab,
-                        no_changeturf,
-                        place_on_top,
-                    } => {
-                        zone!("Commmand::CreateTurf");
-                        let turf_ref = cached_turfs.resolve_coord(loc)?;
-                        if turf_ref.is_null() {
-                            parsed_map.add_warning(format!(
-                                "Unable to create atom at {loc:#?} because coord was null"
-                            ))?;
-                            continue;
-                        }
-
-                        create_turf(
-                            &mut parsed_map,
-                            turf_ref,
-                            prefab,
-                            place_on_top,
-                            no_changeturf,
-                        )?;
-                    }
-                    Command::CreateAtom { loc, prefab } => {
-                        zone!("Commmand::CreateAtom");
-                        let turf_ref = cached_turfs.resolve_coord(loc)?;
-                        if turf_ref.is_null() {
-                            parsed_map.add_warning(format!(
-                                "Unable to create atom at {loc:#?} because coord was null"
-                            ))?;
-                            continue;
-                        }
-                        create_movable(
-                            &mut parsed_map,
-                            &mut our_command_buffer.known_types,
-                            turf_ref,
-                            prefab,
-                        )?;
-                    }
+                    _bapi_add_turf_to_area(area_ref, turf_ref)?;
                 }
-                minimum_pause_counter += 1;
+                Command::CreateTurf {
+                    loc,
+                    prefab,
+                    no_changeturf,
+                    place_on_top,
+                } => {
+                    zone!("Commmand::CreateTurf");
+                    let turf_ref = cached_turfs.resolve_coord(loc)?;
+                    if turf_ref.is_null() {
+                        parsed_map.add_warning(format!(
+                            "Unable to create atom at {loc:#?} because coord was null"
+                        ))?;
+                        continue;
+                    }
 
-                // Yield
-                if minimum_pause_counter % MIN_PAUSE == 0 && _bapi_helper_tick_check()? {
-                    minimum_pause_counter = 0;
-                    return Ok(ByondValue::new_num(1.));
+                    create_turf(
+                        &mut parsed_map,
+                        turf_ref,
+                        prefab,
+                        place_on_top,
+                        no_changeturf,
+                    )?;
+                }
+                Command::CreateAtom { loc, prefab } => {
+                    zone!("Commmand::CreateAtom");
+                    let turf_ref = cached_turfs.resolve_coord(loc)?;
+                    if turf_ref.is_null() {
+                        parsed_map.add_warning(format!(
+                            "Unable to create atom at {loc:#?} because coord was null"
+                        ))?;
+                        continue;
+                    }
+                    create_movable(
+                        &mut parsed_map,
+                        &mut our_command_buffer.known_types,
+                        turf_ref,
+                        prefab,
+                    )?;
                 }
             }
+            minimum_pause_counter += 1;
 
-            // Clean up after ourselves
-            if our_command_buffer.commands.is_empty() {
-                zone!("cleanup");
-                command_buffers_map.remove(&resume_key);
+            // Yield
+            if (minimum_pause_counter % MIN_PAUSE == 0) && _bapi_helper_tick_check()? {
+                return Ok(ByondValue::new_num(1.));
             }
         }
 
-        zone!("set_loading false and return 0");
-        parsed_map.set_loading(false)?;
+        // Clean up after ourselves
+        if our_command_buffer.commands.is_empty() {
+            zone!("cleanup");
+            command_buffers_map.remove(&resume_key);
+        }
+    }
 
-        Ok(ByondValue::new_num(0.))
-    })
+    zone!("set_loading false and return 0");
+    parsed_map.set_loading(false)?;
+
+    Ok(ByondValue::new_num(0.))
 }
 
 fn create_turf(

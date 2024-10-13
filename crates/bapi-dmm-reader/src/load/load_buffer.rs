@@ -8,6 +8,7 @@ use tracy_full::{frame, zone};
 
 use crate::{
     _compat::setup_panic_handler,
+    arena::ArenaMap,
     load::{
         command_buffer::{Command, CommandBuffer},
         helpers::{
@@ -15,8 +16,7 @@ use crate::{
             _bapi_helper_get_world_type_area, _bapi_helper_get_world_type_turf,
         },
     },
-    ouroboros_impl_map::Map,
-    PARSED_MAPS,
+    PARSED_MAPS_ARENABASED,
 };
 
 #[byondapi::bind]
@@ -53,7 +53,7 @@ pub fn _bapidmm_load_map_buffered(
     let place_on_top = place_on_top.get_bool()?;
     let new_z = new_z.get_bool()?;
 
-    let internal_data = unsafe { PARSED_MAPS.get_mut() }
+    let internal_data = unsafe { PARSED_MAPS_ARENABASED.get_mut() }
         .get_mut(id as usize)
         .ok_or_else(|| eyre!("Bad internal index {id:#?}"))?;
 
@@ -85,9 +85,9 @@ pub fn _bapidmm_load_map_buffered(
 /// if you generate usize::MAX command buffers in one round I can't help you I'm sorry
 static mut COMMAND_BUFFER_ID: usize = 0;
 
-fn generate_command_buffer(
+fn generate_command_buffer<'a>(
     parsed_map: &mut ParsedMapTranslationLayer,
-    internal_data: &mut Map,
+    internal_data: &'a mut ArenaMap<'a>,
     offset: (f32, f32, f32),
     crop_map: bool,
     no_changeturf: bool,
@@ -101,189 +101,203 @@ fn generate_command_buffer(
     unsafe { COMMAND_BUFFER_ID += 1 };
     zone!("generate_command_buffer");
 
-    internal_data.with_mut(|fields| {
-        let (_metadata, (prefabs, blocks)) = fields.parsed_data;
-        let command_buffers = fields.command_buffers;
-        let resume_key = unsafe { COMMAND_BUFFER_ID };
+    let (_metadata, (prefabs, blocks)) = &internal_data.parsed_data;
+    let command_buffers = &mut internal_data.command_buffers;
+    let resume_key = unsafe { COMMAND_BUFFER_ID };
 
-        let mut our_command_buffer = CommandBuffer::default();
+    let mut our_command_buffer = CommandBuffer::default();
 
-        let key_len = parsed_map.get_key_len()?;
-        let parsed_bounds = parsed_map.get_parsed_bounds()?;
-        let world_bounds = _bapi_helper_get_world_bounds()?;
-        our_command_buffer.cached_turfs.world_bounds = world_bounds;
+    let key_len = parsed_map.get_key_len()?;
+    let parsed_bounds = parsed_map.get_parsed_bounds()?;
+    let world_bounds = _bapi_helper_get_world_bounds()?;
+    our_command_buffer.cached_turfs.world_bounds = world_bounds;
 
-        // Expand map if necessary
-        if !crop_map {
-            let max_extent_offset = (
-                offset.0 as usize + parsed_bounds.3 - 1,
-                offset.1 as usize + parsed_bounds.4 - 1,
-                offset.2 as usize + parsed_bounds.5 - 1);
-            if exceeds_upper_bounds(max_extent_offset, world_bounds) && !crop_map {
-                parsed_map.expand_map(max_extent_offset, new_z, offset.2)?;
-                our_command_buffer.cached_turfs.world_bounds = max_extent_offset;
-            }
+    // Expand map if necessary
+    if !crop_map {
+        let max_extent_offset = (
+            offset.0 as usize + parsed_bounds.3 - 1,
+            offset.1 as usize + parsed_bounds.4 - 1,
+            offset.2 as usize + parsed_bounds.5 - 1,
+        );
+        if exceeds_upper_bounds(max_extent_offset, world_bounds) && !crop_map {
+            parsed_map.expand_map(max_extent_offset, new_z, offset.2)?;
+            our_command_buffer.cached_turfs.world_bounds = max_extent_offset;
         }
+    }
 
-        let world_turf = _bapi_helper_get_world_type_turf()?;
-        let world_area = _bapi_helper_get_world_type_area()?;
+    let world_turf = _bapi_helper_get_world_type_turf()?;
+    let world_area = _bapi_helper_get_world_type_area()?;
 
-        let space_key: Option<&str> = if no_changeturf {
-            prefabs.iter().find_map(|(key, prefab_list)| {
-                if prefab_list.len() != 2 {
-                    return None;
-                }
-                match prefab_list[0] {
-                    (turf, None) if turf == world_turf => {}
-                    _ => return None,
-                }
-                match prefab_list[1] {
-                    (area, None) if area == world_area => {}
-                    _ => return None,
-                }
-                Some(*key)
-            })
-        } else {
-            None
-        };
-
-        // We know bounds ahead of time so we
-        let mut no_afterchange = no_changeturf;
-        if parsed_bounds.5 + (offset.2 as usize) - 1 > world_bounds.2 {
-            // z expansion
-            if !no_changeturf {
-                parsed_map.add_warning("Z-level expansion occurred without no_changeturf set, this may cause problems when /turf/AfterChange is called, and therefore ChangeTurf will NOT be called")?;
-                no_afterchange = true; // force no_afterchange
+    let space_key: Option<&str> = if no_changeturf {
+        prefabs.iter().find_map(|(key, prefab_list)| {
+            if prefab_list.len() != 2 {
+                return None;
             }
+            match prefab_list[0] {
+                (turf, None) if turf == world_turf => {}
+                _ => return None,
+            }
+            match prefab_list[1] {
+                (area, None) if area == world_area => {}
+                _ => return None,
+            }
+            Some(*key)
+        })
+    } else {
+        None
+    };
+
+    // We know bounds ahead of time so we
+    let mut no_afterchange = no_changeturf;
+    if parsed_bounds.5 + (offset.2 as usize) - 1 > world_bounds.2 {
+        // z expansion
+        if !no_changeturf {
+            parsed_map.add_warning("Z-level expansion occurred without no_changeturf set, this may cause problems when /turf/AfterChange is called, and therefore ChangeTurf will NOT be called")?;
+            no_afterchange = true; // force no_afterchange
         }
+    }
 
-        // (minx, miny, minz, maxx, maxy, maxz)
-        // starts at (1, 1, 1)
-        let mut bounds = (usize::MAX, usize::MAX, usize::MAX, 1, 1, 1);
+    // (minx, miny, minz, maxx, maxy, maxz)
+    // starts at (1, 1, 1)
+    let mut bounds = (usize::MAX, usize::MAX, usize::MAX, 1, 1, 1);
 
-        for (bottom_left, block) in blocks {
-            // We have to reverse and THEN enumerate this to translate from
-            // origin TOP left to origin BOTTOM left
-            // and then reverse it again to do the correct iteration order
-            for (map_y_offset, line) in block.iter().rev().enumerate().rev() {
-                let turfs = separate_turfs(line, key_len as usize);
-                for (map_x_offset, prefab_key) in turfs.enumerate() {
-                    let relative_coord = (
-                        bottom_left.0 + map_x_offset,
-                        bottom_left.1 + map_y_offset,
-                        bottom_left.2,
-                    );
+    for (bottom_left, block) in blocks {
+        // We have to reverse and THEN enumerate this to translate from
+        // origin TOP left to origin BOTTOM left
+        // and then reverse it again to do the correct iteration order
+        for (map_y_offset, line) in block.iter().rev().enumerate().rev() {
+            let turfs = separate_turfs(line, key_len as usize);
+            for (map_x_offset, prefab_key) in turfs.enumerate() {
+                let relative_coord = (
+                    bottom_left.0 + map_x_offset,
+                    bottom_left.1 + map_y_offset,
+                    bottom_left.2,
+                );
 
-                    // Skip anything outside of our relative bounds
-                    if float_exceeds_upper_bounds(relative_coord, upper_bounds) {
-                        continue;
-                    }
-                    // for some reason, negative bounds are permitted?
-                    if float_exceeds_lower_bounds(relative_coord, lower_bounds) {
-                        continue;
-                    }
+                // Skip anything outside of our relative bounds
+                if float_exceeds_upper_bounds(relative_coord, upper_bounds) {
+                    continue;
+                }
+                // for some reason, negative bounds are permitted?
+                if float_exceeds_lower_bounds(relative_coord, lower_bounds) {
+                    continue;
+                }
 
-                    // Calculate absolute position
-                    // This is offset - 1 because (1,1,1) actually goes *at* offset
-                    let exact_coord = (
-                        relative_coord.0 + offset.0 as usize - 1,
-                        relative_coord.1 + offset.1 as usize - 1,
-                        relative_coord.2 + offset.2 as usize - 1,
-                    );
+                // Calculate absolute position
+                // This is offset - 1 because (1,1,1) actually goes *at* offset
+                let exact_coord = (
+                    relative_coord.0 + offset.0 as usize - 1,
+                    relative_coord.1 + offset.1 as usize - 1,
+                    relative_coord.2 + offset.2 as usize - 1,
+                );
 
-                    // This will just guaranteed fail to locate a turf
-                    if exceeds_lower_bounds(exact_coord, (1, 1, 1)) {
+                // This will just guaranteed fail to locate a turf
+                if exceeds_lower_bounds(exact_coord, (1, 1, 1)) {
+                    parsed_map.add_warning(format!(
+                        "Bad map coord (tries to spawn in negative space): {exact_coord:#?}"
+                    ))?;
+                    continue;
+                }
+
+                // Avoid generating OOB commands
+                if exceeds_upper_bounds(exact_coord, world_bounds) && crop_map {
+                    continue;
+                }
+
+                if Some(prefab_key) == space_key && no_afterchange {
+                    continue;
+                }
+
+                if let Some(prefab) = prefabs.get(prefab_key) {
+                    // DMM prefab require that all prefab lists end with one /turf, and then one /area.
+                    if prefab.len() < 2 {
                         parsed_map.add_warning(format!(
-                            "Bad map coord (tries to spawn in negative space): {exact_coord:#?}"
-                        ))?;
-                        continue;
-                    }
-
-                    // Avoid generating OOB commands
-                    if exceeds_upper_bounds(exact_coord, world_bounds) && crop_map {
-                        continue;
-                    }
-
-                    if Some(prefab_key) == space_key && no_afterchange {
-                        continue;
-                    }
-
-                    if let Some(prefab) = prefabs.get(prefab_key) {
-                        // DMM prefab require that all prefab lists end with one /turf, and then one /area.
-                        if prefab.len() < 2 {
-                            parsed_map.add_warning(format!(
                                 "Prefab {prefab_key:#?} is too short, violating requirement for /turf and /area!"
                             ))?;
-                            continue;
-                        }
+                        continue;
+                    }
 
-                        // This is the point where we are committed, we are GOING to put something at this coord
-                        // Accordingly, this is where we calculate bounds
-                        bounds.0 = bounds.0.min(exact_coord.0);
-                        bounds.1 = bounds.1.min(exact_coord.1);
-                        bounds.2 = bounds.2.min(exact_coord.2);
-                        bounds.3 = bounds.3.max(exact_coord.0);
-                        bounds.4 = bounds.4.max(exact_coord.1);
-                        bounds.5 = bounds.5.max(exact_coord.2);
+                    // This is the point where we are committed, we are GOING to put something at this coord
+                    // Accordingly, this is where we calculate bounds
+                    bounds.0 = bounds.0.min(exact_coord.0);
+                    bounds.1 = bounds.1.min(exact_coord.1);
+                    bounds.2 = bounds.2.min(exact_coord.2);
+                    bounds.3 = bounds.3.max(exact_coord.0);
+                    bounds.4 = bounds.4.max(exact_coord.1);
+                    bounds.5 = bounds.5.max(exact_coord.2);
 
-                        our_command_buffer.cached_turfs.cache(exact_coord)?;
+                    our_command_buffer.cached_turfs.cache(exact_coord)?;
 
-                        let mut prefab_list = prefab.iter().rev();
-                        // Above check ensures that these cannot panic
-                        let prefab_area = prefab_list.next().unwrap();
-                        if !prefab_area.0.starts_with("/area") {
-                            parsed_map.add_warning(format!(
+                    let mut prefab_list = prefab.iter().rev();
+                    // Above check ensures that these cannot panic
+                    let prefab_area = prefab_list.next().unwrap();
+                    if !prefab_area.0.starts_with("/area") {
+                        parsed_map.add_warning(format!(
                                 "Prefab {prefab_key:#?} does not end in an area, instead ending in {prefab_area:#?}!"
                             ))?;
-                            continue;
-                        }
-                        if !prefab_area.0.starts_with("/area/template_noop") {
-                            zone!("generating CreateArea");
-                            our_command_buffer.commands.push_back(Command::CreateArea { loc: exact_coord, prefab: prefab_area, new_z });
-                        }
+                        continue;
+                    }
+                    if !prefab_area.0.starts_with("/area/template_noop") {
+                        zone!("generating CreateArea");
+                        our_command_buffer.commands.push_back(Command::CreateArea {
+                            loc: exact_coord,
+                            prefab: prefab_area,
+                            new_z,
+                        });
+                    }
 
-                        let prefab_turf = prefab_list.next().unwrap();
-                        if !prefab_turf.0.starts_with("/turf") {
-                            parsed_map.add_warning(format!(
+                    let prefab_turf = prefab_list.next().unwrap();
+                    if !prefab_turf.0.starts_with("/turf") {
+                        parsed_map.add_warning(format!(
                                     "Prefab {prefab_key:#?} does not second-end in a turf, instead ending in {prefab_turf:#?}!"
                                 ))?;
-                            continue;
-                        }
-                        if !prefab_turf.0.starts_with("/turf/template_noop") {
-                            zone!("generating CreateTurf");
-                            our_command_buffer.commands.push_back(Command::CreateTurf { loc: exact_coord, prefab: prefab_turf, no_changeturf: no_afterchange, place_on_top  })
-                        }
+                        continue;
+                    }
+                    if !prefab_turf.0.starts_with("/turf/template_noop") {
+                        zone!("generating CreateTurf");
+                        our_command_buffer.commands.push_back(Command::CreateTurf {
+                            loc: exact_coord,
+                            prefab: prefab_turf,
+                            no_changeturf: no_afterchange,
+                            place_on_top,
+                        })
+                    }
 
-                        // We reverse it again after doing the turf and area
-                        for instance in prefab_list.rev() {
-                            // We allow these but warn about them
-                            if !instance.0.starts_with("/obj") && !instance.0.starts_with("/mob") {
-                                parsed_map.add_warning(
+                    // We reverse it again after doing the turf and area
+                    for instance in prefab_list.rev() {
+                        // We allow these but warn about them
+                        if !instance.0.starts_with("/obj") && !instance.0.starts_with("/mob") {
+                            parsed_map.add_warning(
                                     format!(
                                         "Prefab {prefab_key:#?} has a strange element that we'll treat as a movable: {instance:#?}"
                                     ))?;
-                            }
-                            zone!("generating CreateAtom");
-                            // Movables are easy
-                            our_command_buffer.commands.push_back(Command::CreateAtom { loc: exact_coord, prefab: instance });
                         }
-                    } else {
-                        // Note: Cannot hard error or map will fail to finish loading
-                        // This is necessarily just a warning
-                        parsed_map.add_warning(format!("Invalid prefab key: {prefab_key:#?}"))?;
+                        zone!("generating CreateAtom");
+                        // Movables are easy
+                        our_command_buffer.commands.push_back(Command::CreateAtom {
+                            loc: exact_coord,
+                            prefab: instance,
+                        });
                     }
+                } else {
+                    // Note: Cannot hard error or map will fail to finish loading
+                    // This is necessarily just a warning
+                    parsed_map.add_warning(format!("Invalid prefab key: {prefab_key:#?}"))?;
                 }
             }
         }
+    }
 
-        parsed_map.set_bounds(bounds)?;
+    parsed_map.set_bounds(bounds)?;
 
-        #[cfg(feature = "dump")]
-        let _ = std::fs::write(format!("data/mapdump_{}_{}", _metadata.name, resume_key), format!("{:#?}", &our_command_buffer));
-        command_buffers.insert(resume_key, our_command_buffer);
+    #[cfg(feature = "dump")]
+    let _ = std::fs::write(
+        format!("data/mapdump_{}_{}", _metadata.name, resume_key),
+        format!("{:#?}", &our_command_buffer),
+    );
+    command_buffers.insert(resume_key, our_command_buffer);
 
-        Ok(ByondValue::new_num(resume_key as f32))
-    })
+    Ok(ByondValue::new_num(resume_key as f32))
 }
 
 // Helpers
