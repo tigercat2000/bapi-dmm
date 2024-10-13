@@ -22,7 +22,13 @@ fn main() -> anyhow::Result<()> {
         }
 
         let string = std::fs::read_to_string(&file)?;
-        match parse_map_multithreaded(&string) {
+        match parse_map_multithreaded(
+            file.file_name()
+                .map(|s| s.to_string_lossy())
+                .unwrap_or(std::borrow::Cow::Owned("<unk filename>".to_owned()))
+                .to_string(),
+            &string,
+        ) {
             Ok((info, (prefabs, blocks))) => {
                 println!(
                     "\x1b[32mSuccesfully parsed {file:#?} - TGM? {} - {} prefabs, {} blocks\x1b[0m",
@@ -30,6 +36,7 @@ fn main() -> anyhow::Result<()> {
                     prefabs.len(),
                     blocks.len()
                 );
+                let _ = std::fs::write("./output.txt", format!("{:#?}", prefabs));
             }
             Err(e) => {
                 eprintln!("\x1b[31mFAILED Parsing {file:#?}\x1b[0m");

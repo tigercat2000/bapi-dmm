@@ -1,5 +1,7 @@
+//! This wraps [`ByondValue`] with IncRef/DecRef and [`Rc`]
+//!
 //! [`ByondValue`] only lives for one tick, but [`crate::load::command_buffer::CommandBuffer`] needs to hold them for
-//! longer than one tick - so this wraps [`ByondValue`] with IncRef/DecRef and [`Rc`] to make it easy on us
+//! longer than one tick, so we have to do this.
 
 use byondapi::value::ByondValue;
 use std::rc::Rc;

@@ -7,6 +7,7 @@ pub mod prefabs;
 #[derive(Debug)]
 pub struct MapInfo {
     pub is_tgm: bool,
+    pub name: String,
 }
 
 #[derive(Debug)]
@@ -33,7 +34,7 @@ impl LocatedError {
 }
 
 pub type MapData<'s> = (prefabs::Prefabs<'s>, Vec<block::Block<'s>>);
-pub fn parse_map_multithreaded(i: &str) -> Result<(MapInfo, MapData), LocatedError> {
+pub fn parse_map_multithreaded(name: String, i: &str) -> Result<(MapInfo, MapData), LocatedError> {
     let mut i = Located::new(i);
     // just merk the dmm2tgm header
     let _ = opt(
@@ -57,5 +58,5 @@ pub fn parse_map_multithreaded(i: &str) -> Result<(MapInfo, MapData), LocatedErr
     let prefab_map = prefabs::multithreaded_parse_map_prefabs(i)?;
     let block_list = block::multithreaded_parse_map_locations(i)?;
 
-    Ok((MapInfo { is_tgm }, (prefab_map, block_list)))
+    Ok((MapInfo { name, is_tgm }, (prefab_map, block_list)))
 }

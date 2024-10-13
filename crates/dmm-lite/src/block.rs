@@ -87,37 +87,40 @@ mod tests {
 
     #[test]
     fn test_parse_coords() {
-        let mut coords = "(1,2,3)";
-        let mut bigger_coords = "(100,241,2)";
+        let coords = "(1,2,3)";
+        let bigger_coords = "(100,241,2)";
 
-        assert_eq!(parse_coords.parse_next(&mut coords), Ok((1, 2, 3)));
         assert_eq!(
-            parse_coords.parse_next(&mut bigger_coords),
+            parse_coords.parse_next(&mut Located::new(coords)),
+            Ok((1, 2, 3))
+        );
+        assert_eq!(
+            parse_coords.parse_next(&mut Located::new(bigger_coords)),
             Ok((100, 241, 2))
         );
     }
 
     #[test]
     fn test_parse_map_lines() {
-        let mut map_lines = "{\"aaaaabaac\naabaacaaa\naacaabaaa\"}";
+        let map_lines = "{\"aaaaabaac\naabaacaaa\naacaabaaa\"}";
 
         assert_eq!(
-            parse_map_lines.parse_next(&mut map_lines),
+            parse_map_lines.parse_next(&mut Located::new(map_lines)),
             Ok(vec!["aaaaabaac", "aabaacaaa", "aacaabaaa"])
         );
     }
 
     #[test]
     fn test_parse_block() {
-        let mut block = "(1,1,1) = {\"aaaaabaac\naabaacaaa\"}";
-        let mut tgm_block = "(1,1,1) = {\"\naaa\naab\naac\naab\naac\naaa\"}";
+        let block = "(1,1,1) = {\"aaaaabaac\naabaacaaa\"}";
+        let tgm_block = "(1,1,1) = {\"\naaa\naab\naac\naab\naac\naaa\"}";
 
         assert_eq!(
-            parse_block.parse_next(&mut block),
+            parse_block.parse_next(&mut Located::new(block)),
             Ok(((1, 1, 1), vec!["aaaaabaac", "aabaacaaa"]))
         );
         assert_eq!(
-            parse_block.parse_next(&mut tgm_block),
+            parse_block.parse_next(&mut Located::new(tgm_block)),
             Ok(((1, 1, 1), vec!["aaa", "aab", "aac", "aab", "aac", "aaa"]))
         );
     }

@@ -278,6 +278,7 @@ fn generate_command_buffer(
 
         parsed_map.set_bounds(bounds)?;
 
+        let _ = std::fs::write(format!("data/mapdump_{}_{}", _metadata.name, resume_key), format!("{:#?}", &our_command_buffer));
         command_buffers.insert(resume_key, our_command_buffer);
 
         Ok(ByondValue::new_num(resume_key as f32))

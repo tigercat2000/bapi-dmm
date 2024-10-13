@@ -30,7 +30,15 @@ pub fn _bapidmm_parse_map_blocking(dmm_file: ByondValue, mut map_datum: ByondVal
 
     let map = MapTryBuilder {
         map_data: string,
-        parsed_data_builder: |map_data: &String| dmm_lite::parse_map_multithreaded(map_data),
+        parsed_data_builder: |map_data: &String| {
+            dmm_lite::parse_map_multithreaded(
+                path.file_name()
+                    .map(|s| s.to_string_lossy())
+                    .unwrap_or(std::borrow::Cow::Owned("<unk filename>".to_owned()))
+                    .to_string(),
+                map_data,
+            )
+        },
         command_buffers_builder: |_, _| Ok(HashMap::new()),
     }
     .try_build()

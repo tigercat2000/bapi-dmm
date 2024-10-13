@@ -128,11 +128,11 @@ fn test_single_block() {
         .collect();
 
     assert_eq!(
-        parse_block.parse_next(&mut meow.as_str()),
+        parse_block.parse_next(&mut Located::new(&meow)),
         Ok(((1, 1, 1), vec!["aaaaabaac", "aaaaabaac", "aaaaabaac"]))
     );
     assert_eq!(
-        parse_block.parse_next(&mut meow_tgm.as_str()),
+        parse_block.parse_next(&mut Located::new(&meow_tgm)),
         Ok(((1, 1, 1), vec!["aaa"]))
     );
 }
@@ -144,8 +144,8 @@ fn full_block_parse() {
 
     let meow_locations = get_block_locations(&meow);
     for loc in meow_locations {
-        let mut parse = &meow[loc..];
-        let value = parse_block.parse_next(&mut parse);
+        let parse = &meow[loc..];
+        let value = parse_block.parse_next(&mut Located::new(parse));
         match value {
             Ok(_) => {}
             Err(e) => panic!("Test Failed at {parse:#?}: {:#?}", e),
@@ -154,8 +154,8 @@ fn full_block_parse() {
 
     let meow_tgm_locations = get_block_locations(&meow_tgm);
     for loc in meow_tgm_locations {
-        let mut parse = &meow_tgm[loc..];
-        let value = parse_block.parse_next(&mut parse);
+        let parse = &meow_tgm[loc..];
+        let value = parse_block.parse_next(&mut Located::new(parse));
         match value {
             Ok(_) => {}
             Err(e) => panic!("Test Failed at {parse:#?}: {:#?}", e),
@@ -168,12 +168,13 @@ fn full_parse() {
     let meow = std::fs::read_to_string("./tests/maps/handwritten.dmm").unwrap();
     let meow_tgm = std::fs::read_to_string("./tests/maps/handwritten-tgm.dmm").unwrap();
 
-    let (meta, (prefabs, blocks)) = parse_map_multithreaded(&meow).unwrap();
+    let (meta, (prefabs, blocks)) = parse_map_multithreaded("Meow".to_owned(), &meow).unwrap();
     assert!(!meta.is_tgm);
     assert_eq!(prefabs.len(), 3);
     assert_eq!(blocks.len(), 1);
 
-    let (meta, (tgm_prefabs, tgm_blocks)) = parse_map_multithreaded(&meow_tgm).unwrap();
+    let (meta, (tgm_prefabs, tgm_blocks)) =
+        parse_map_multithreaded("Meow".to_owned(), &meow_tgm).unwrap();
     assert!(meta.is_tgm);
     assert_eq!(tgm_prefabs.len(), 3);
     assert_eq!(tgm_blocks.len(), 3);

@@ -174,8 +174,8 @@ fn full_block_parse() {
 
     let nadezhda_locations = get_block_locations(&nadezhda);
     for loc in nadezhda_locations {
-        let mut parse = &nadezhda[loc..];
-        let value = parse_block.parse_next(&mut parse);
+        let parse = &nadezhda[loc..];
+        let value = parse_block.parse_next(&mut Located::new(parse));
         match value {
             Ok(_) => {}
             Err(e) => panic!("Test Failed at {parse:#?}: {:#?}", e),
@@ -184,8 +184,8 @@ fn full_block_parse() {
 
     let nadezhda_tgm_locations = get_block_locations(&nadezhda_tgm);
     for loc in nadezhda_tgm_locations {
-        let mut parse = &nadezhda_tgm[loc..];
-        let value = parse_block.parse_next(&mut parse);
+        let parse = &nadezhda_tgm[loc..];
+        let value = parse_block.parse_next(&mut Located::new(parse));
         match value {
             Ok(_) => {}
             Err(e) => panic!("Test Failed at {parse:#?}: {:#?}", e),
@@ -198,12 +198,13 @@ fn full_parse() {
     let map = std::fs::read_to_string("./tests/maps/nadezhda.dmm").unwrap();
     let map_tgm = std::fs::read_to_string("./tests/maps/nadezhda-tgm.dmm").unwrap();
 
-    let (meta, (prefabs, blocks)) = parse_map_multithreaded(&map).unwrap();
+    let (meta, (prefabs, blocks)) = parse_map_multithreaded("nadhezhda".to_owned(), &map).unwrap();
     assert!(!meta.is_tgm);
     assert_eq!(prefabs.len(), 14980);
     assert_eq!(blocks.len(), 3);
 
-    let (meta, (tgm_prefabs, tgm_blocks)) = parse_map_multithreaded(&map_tgm).unwrap();
+    let (meta, (tgm_prefabs, tgm_blocks)) =
+        parse_map_multithreaded("nadhezhda".to_owned(), &map_tgm).unwrap();
     assert!(meta.is_tgm);
     assert_eq!(tgm_prefabs.len(), 14980);
     assert_eq!(tgm_blocks.len(), 200 * 3);

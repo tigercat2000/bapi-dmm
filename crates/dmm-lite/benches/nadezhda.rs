@@ -34,10 +34,14 @@ fn criterion_benchmark(c: &mut Criterion) {
         })
     });
     group.bench_function("dmm full", |b| {
-        b.iter_with_large_drop(|| parse_map_multithreaded(nadezhda_dmm.as_str()))
+        b.iter_with_large_drop(|| {
+            parse_map_multithreaded("Nadezhda".to_owned(), nadezhda_dmm.as_str())
+        })
     });
     group.bench_function("tgm full", |b| {
-        b.iter_with_large_drop(|| parse_map_multithreaded(nadezhda_tgm.as_str()))
+        b.iter_with_large_drop(|| {
+            parse_map_multithreaded("Nadezhda".to_owned(), nadezhda_tgm.as_str())
+        })
     });
 }
 

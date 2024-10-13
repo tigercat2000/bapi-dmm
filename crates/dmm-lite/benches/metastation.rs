@@ -30,10 +30,10 @@ fn criterion_benchmark(c: &mut Criterion) {
         })
     });
     group.bench_function("dmm full", |b| {
-        b.iter_with_large_drop(|| parse_map_multithreaded(meta_dmm.as_str()))
+        b.iter_with_large_drop(|| parse_map_multithreaded("Meta".to_owned(), meta_dmm.as_str()))
     });
     group.bench_function("tgm full", |b| {
-        b.iter_with_large_drop(|| parse_map_multithreaded(meta_tgm.as_str()))
+        b.iter_with_large_drop(|| parse_map_multithreaded("Meta".to_owned(), meta_tgm.as_str()))
     });
 }
 
