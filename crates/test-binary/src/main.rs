@@ -36,7 +36,6 @@ fn main() -> anyhow::Result<()> {
                     prefabs.len(),
                     blocks.len()
                 );
-                let _ = std::fs::write("./output.txt", format!("{:#?}", prefabs));
             }
             Err(e) => {
                 eprintln!("\x1b[31mFAILED Parsing {file:#?}\x1b[0m");
