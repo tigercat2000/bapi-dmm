@@ -233,8 +233,8 @@ fn generate_command_buffer<'a>(
                     let prefab_area = prefab_list.next().unwrap();
                     if !prefab_area.0.starts_with("/area") {
                         parsed_map.add_warning(format!(
-                                "Prefab {prefab_key:#?} does not end in an area, instead ending in {prefab_area:#?}!"
-                            ))?;
+                            "Prefab {prefab_key:#?} does not end in an area, instead ending in {prefab_area:#?}!"
+                        ))?;
                         continue;
                     }
                     if !prefab_area.0.starts_with("/area/template_noop") {
@@ -249,8 +249,8 @@ fn generate_command_buffer<'a>(
                     let prefab_turf = prefab_list.next().unwrap();
                     if !prefab_turf.0.starts_with("/turf") {
                         parsed_map.add_warning(format!(
-                                    "Prefab {prefab_key:#?} does not second-end in a turf, instead ending in {prefab_turf:#?}!"
-                                ))?;
+                            "Prefab {prefab_key:#?} does not second-end in a turf, instead ending in {prefab_turf:#?}!"
+                        ))?;
                         continue;
                     }
                     if !prefab_turf.0.starts_with("/turf/template_noop") {

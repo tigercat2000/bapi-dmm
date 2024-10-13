@@ -80,8 +80,9 @@
 
 /test/proc/test_turf_and_area()
 	var/datum/bapi_parsed_map/B = load_map("turf_and_area.dmm")
-	if(B.has_warnings())
-		CRASH("warnings produced: [json_encode(B.loaded_warnings)]")
+	ASSERT(B.has_warnings())
+	ASSERT(length(B.loaded_warnings) == 2)
+
 	ASSERT(B._internal_index != -1)
 	var/area/placed_at_runtime/A = locate()
 	ASSERT(A != null)

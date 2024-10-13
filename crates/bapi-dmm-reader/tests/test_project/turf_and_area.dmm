@@ -1,4 +1,4 @@
-"a" = (/turf/template_noop,/area/template_noop)
+"a" = (/obj,/turf/template_noop,/turf/template_noop,/area/template_noop)
 "b" = (/turf/placed_at_runtime,/area/placed_at_runtime)
 
 (1,1,1) = {"
