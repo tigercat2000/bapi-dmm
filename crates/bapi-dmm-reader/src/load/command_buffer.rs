@@ -263,13 +263,18 @@ fn create_movable<'s>(
     path_cache: &mut HashMap<&'s str, SharedByondValue>,
     turf: ByondValue,
     obj: &'s dmm_lite::prefabs::Prefab,
-) -> eyre::Result<ByondValue> {
+) -> eyre::Result<()> {
     zone!("movable creation");
     let (path_text, vars) = obj;
     let path = if let Some(path) = path_cache.get(*path_text) {
         path
     } else {
         let path = _bapi_helper_text2path(path_text)?;
+        if path.is_null() {
+            parsed_map.add_warning(format!("Bad path {path_text:#?}"))?;
+            return Ok(());
+        }
+
         let path = Rc::new(SmartByondValue::from(path));
         path_cache.insert(path_text, path);
         path_cache.get(path_text).unwrap()
@@ -285,7 +290,7 @@ fn create_movable<'s>(
 
     _bapi_apply_preloader(instance)?;
 
-    Ok(instance)
+    Ok(())
 }
 
 fn convert_vars_list_to_byondlist(

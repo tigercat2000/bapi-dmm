@@ -101,7 +101,7 @@ pub fn _bapi_create_turf(
             ByondValue::new_num(if no_changeturf { 1. } else { 0. }),
         ],
     )
-    .context("Failed to call text2file")
+    .context("Failed to call bapi_create_turf")
 }
 
 /// Calls TICK_CHECK - basically checking if the server is overrunning or about to overrun it's tick.

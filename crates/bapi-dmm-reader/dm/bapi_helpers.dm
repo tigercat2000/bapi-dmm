@@ -41,6 +41,9 @@
 
 /proc/_bapi_new_atom(text_path, turf/crds, list/attributes)
 	var/path = text2path(text_path)
+	if(!path)
+		CRASH("Bad atom path [text_path]")
+
 	if(attributes != null)
 		world.preloader_setup(attributes, path)
 
@@ -51,6 +54,8 @@
 
 /proc/_bapi_create_or_get_area(text_path)
 	var/path = text2path(text_path)
+	if(!path)
+		CRASH("Bad area path [text_path]")
 
 	var/area/area_instance = areas_by_type[path]
 	if(!area_instance)
@@ -71,6 +76,10 @@
 
 /proc/_bapi_create_turf(turf/crds, text_path, list/attributes, place_on_top, no_changeturf)
 	var/path = text2path(text_path)
+	if(!path)
+		CRASH("Bad turf path [text_path]")
+		return
+
 	if(attributes != null)
 		world.preloader_setup(attributes, path)
 
@@ -86,6 +95,8 @@
 		world.preloader_load(instance)
 
 /proc/_bapi_add_turf_to_area(area/A, turf/T)
+	if(!A || !T)
+		return
 	A.contents.Add(T)
 
 /proc/_bapi_helper_get_world_type_turf()
