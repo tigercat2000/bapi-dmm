@@ -9,7 +9,7 @@ This loads maps into the game really, REALLY fast. The main bottleneck is entire
 
 It has a custom zero-copy dmm parser - [dmm-lite](crates/dmm-lite), written entirely using [winnow](https://github.com/winnow-rs/winnow).
 
-See [bapi\_dmm\_reader.dm](crates/bapi-dmm-reader/dm/bapi-dmm_reader.dm) for the supporting DM code.
+See [bapi\_dmm\_reader.dm](crates/bapi-dmm-reader/dm/bapi_dmm_reader.dm) for the supporting DM code.
 
 ## Linux building
 
